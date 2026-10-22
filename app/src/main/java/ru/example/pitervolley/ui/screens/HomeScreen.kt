@@ -9,26 +9,34 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import ru.example.pitervolley.data.Division
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Game
 import ru.example.pitervolley.data.Repo
+import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.ui.ClickableRow
 import ru.example.pitervolley.ui.GameCard
 import ru.example.pitervolley.ui.ScreenScaffold
@@ -49,6 +57,11 @@ fun HomeScreen(
     val favoriteIds by Favorites.teams.collectAsState()
     val ds = remember(revision) { Repo.data }
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
+    var syncMessage by remember { mutableStateOf<String?>(null) }
+
     val favoriteTeams = remember(revision, favoriteIds) { favoriteIds.mapNotNull { Repo.team(it) } }
     val favoriteGames = remember(revision, favoriteIds) {
         val start = ru.example.pitervolley.data.today()
@@ -64,13 +77,28 @@ fun HomeScreen(
 
     ScreenScaffold(
         title = "PiterVolley",
-        subtitle = "Волейбол Санкт-Петербурга · сезон ${ds.season}",
+        subtitle = "Сезон ${ds.season}",
         actions = {
-            TextButton(onClick = onOpenVenues) {
-                Text("Залы", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            }
             TextButton(onClick = onOpenSearch) {
                 Text("Поиск", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            TextButton(
+                enabled = !refreshing,
+                onClick = {
+                    scope.launch {
+                        refreshing = true
+                        syncMessage = null
+                        val result = SiteSync.refresh(context, force = true)
+                        refreshing = false
+                        syncMessage = if (result.isSuccess) null else "не удалось обновить"
+                    }
+                },
+            ) {
+                if (refreshing) {
+                    CircularProgressIndicator(Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Обновить", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
             }
         },
     ) { padding ->
@@ -91,6 +119,18 @@ fun HomeScreen(
                         StatChip(ds.games.count { it.hasResult }.toString(), "сыграно", Modifier.weight(1f))
                     }
                 }
+            }
+
+            item {
+                Text(
+                    text = syncMessage
+                        ?: if (refreshing) "Обновляем данные с сайта федерации…"
+                        else SiteSync.lastSyncText(context),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (syncMessage != null) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
             }
 
             if (favoriteTeams.isNotEmpty()) {
@@ -123,6 +163,30 @@ fun HomeScreen(
             }
             items(upcoming, key = { "${it.divisionId}-${it.id}" }) { game ->
                 GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+            }
+
+            item { SectionTitle("Залы") }
+            item {
+                val venuesCount = remember(revision) {
+                    ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size
+                }
+                Card(
+                    onClick = onOpenVenues,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text("Адреса игр", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "$venuesCount залов · список игр по каждому",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             item { SectionTitle("Соревнования") }

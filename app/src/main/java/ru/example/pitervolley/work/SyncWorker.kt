@@ -9,7 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import ru.example.pitervolley.data.Repo
-import ru.example.pitervolley.data.Sync
+import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
 import java.util.concurrent.TimeUnit
 
@@ -18,7 +18,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     override suspend fun doWork(): Result {
         runCatching { Repo.load(applicationContext) }
-        val result = Sync.refresh(applicationContext)
+        val result = SiteSync.refresh(applicationContext, force = true)
         runCatching { GameNotifications.notifyTomorrow(applicationContext) }
         return if (result.isSuccess) Result.success() else Result.retry()
     }

@@ -66,17 +66,17 @@ data class Game(
     val id: String,
     val divisionId: Int = 0,
     val round: Int? = null,
-    val date: String? = null,
-    val time: String = "",
-    val venue: String = "",
+    var date: String? = null,
+    var time: String = "",
+    var venue: String = "",
     val homeId: String = "",
     val awayId: String = "",
     val home: String = "",
     val away: String = "",
     val score: String = "",
     val sets: List<List<Int>> = emptyList(),
-    val slotNum: Int? = null,
-    val dateSource: String? = null,
+    var slotNum: Int? = null,
+    var dateSource: String? = null,
 ) {
     val hasResult: Boolean get() = score.isNotBlank()
     val homeSets: Int get() = sets.count { it.size > 1 && it[0] > it[1] }

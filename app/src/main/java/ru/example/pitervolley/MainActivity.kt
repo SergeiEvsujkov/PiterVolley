@@ -31,7 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Repo
-import ru.example.pitervolley.data.Sync
+import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
 import ru.example.pitervolley.ui.PiterVolleyApp
 import ru.example.pitervolley.ui.theme.PiterVolleyTheme
@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (error == null) {
-                        runCatching { Sync.refresh(app) }
+                        runCatching { SiteSync.refresh(app, force = false) }
                         runCatching { GameNotifications.notifyTomorrow(app) }
                     }
                 }

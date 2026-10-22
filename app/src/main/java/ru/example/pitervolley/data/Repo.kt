@@ -39,7 +39,11 @@ object Repo {
 
     /** Swap in a newly downloaded dataset (called from [Sync]). */
     fun apply(text: String) {
-        val ds = json.decodeFromString<Dataset>(text)
+        apply(json.decodeFromString<Dataset>(text))
+    }
+
+    /** Swap in an already parsed dataset (called from [SiteSync]). */
+    fun apply(ds: Dataset) {
         dataset = ds
 
         divisionById = ds.divisions.associateBy { it.id }
