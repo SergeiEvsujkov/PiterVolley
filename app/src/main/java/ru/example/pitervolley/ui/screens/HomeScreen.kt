@@ -147,13 +147,23 @@ fun HomeScreen(
                         ClickableRow({ onOpenTeam(team.id) }) {
                             TeamLogo(team, 36)
                             Spacer(Modifier.width(12.dp))
-                            Text(
-                                team.name,
-                                Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    team.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Repo.division(team.divisionId)?.let { division ->
+                                    Text(
+                                        text = "${division.competition} · ${division.subtitle}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
                             Text("›", style = MaterialTheme.typography.titleLarge)
                         }
                     }
