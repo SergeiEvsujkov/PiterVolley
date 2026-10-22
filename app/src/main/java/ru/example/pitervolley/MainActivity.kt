@@ -29,8 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Repo
+import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
 import ru.example.pitervolley.ui.PiterVolleyApp
 import ru.example.pitervolley.ui.theme.PiterVolleyTheme
@@ -61,6 +63,15 @@ class MainActivity : ComponentActivity() {
                     if (!Repo.isLoaded) {
                         try {
                             withContext(Dispatchers.IO) { Repo.load(app) }
+
+                            // Первый запуск: сразу подтягиваем свежие данные с сайта,
+                            // но не держим пользователя дольше 20 секунд.
+                            if (SiteSync.lastSync(app) == 0L) {
+                                withTimeoutOrNull(20_000) {
+                                    SiteSync.refresh(app, force = true)
+                                }
+                            }
+
                             ready = true
                         } catch (t: Throwable) {
                             error = t.message ?: t.javaClass.simpleName
