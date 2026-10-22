@@ -197,6 +197,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
     }
     val revision by Repo.revision.collectAsState()
     val person = remember(revision, playerId) { Repo.person(Repo.personKeyOf(player)) }
+    val baseKey = remember(revision, playerId) { Repo.baseKeyOf(player) }
     val teams = person?.teams.orEmpty()
     val favorites by Favorites.persons.collectAsState()
     val isFavorite = person != null && Favorites.isPersonFavorite(person.key)
@@ -298,6 +299,37 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                         }
                         OutlinedButton(onClick = { mergeDialog = true }) {
                             Text("Связать с игроком", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                if (person != null && Repo.hasManualEdits(person.key, baseKey)) {
+                    Spacer(Modifier.height(12.dp))
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(
+                                "Группировка изменена вручную",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Вы разделили или объединили записи этого игрока. От этого зависят " +
+                                    "счётчик уникальных игроков, его команды и список игр.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(
+                                onClick = { Repo.resetManualEdits(baseKey) },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                            ) {
+                                Text("Вернуть как в данных федерации", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }

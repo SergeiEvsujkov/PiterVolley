@@ -135,6 +135,24 @@ object Repo {
         return Person(key, first.name, first.birthYear, players, teamsOfPerson(key))
     }
 
+    fun baseKeyOf(player: Player): String = personKey(player.name, player.birthYear)
+
+    /** Есть ли у человека ручные правки группировки (разделение или объединение). */
+    fun hasManualEdits(personKey: String, baseKey: String): Boolean {
+        if (!isLoaded) return false
+        if (personKey.startsWith("id:") || personKey != baseKey) return true
+        val ids = data.players.filter { baseKeyOf(it) == baseKey }.map { it.id }
+        return ids.any { PersonOverrides.isSplit(it) }
+    }
+
+    /** Сбрасывает ручные правки всех записей с этим базовым ключом. */
+    fun resetManualEdits(baseKey: String) {
+        if (!isLoaded) return
+        val ids = data.players.filter { baseKeyOf(it) == baseKey }.map { it.id }
+        PersonOverrides.resetFor(baseKey, ids)
+        rebuildPersons()
+    }
+
     fun divisionsByCompetition(): Map<String, List<Division>> =
         data.divisions.groupBy { it.competition }.toSortedMap()
 

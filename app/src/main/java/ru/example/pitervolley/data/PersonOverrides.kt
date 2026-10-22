@@ -70,4 +70,31 @@ object PersonOverrides {
         prefs.edit().remove(KEY_SPLIT).remove(KEY_MERGES).apply()
         _changes.value = _changes.value + 1
     }
+
+    fun splitCount(): Int =
+        if (!::prefs.isInitialized) 0 else prefs.getStringSet(KEY_SPLIT, emptySet())?.size ?: 0
+
+    fun mergeCount(): Int = merges().size
+
+    fun hasAny(): Boolean = splitCount() > 0 || mergeCount() > 0
+
+    /** Есть ли ручная правка, затрагивающая этого человека. */
+    fun isManuallyAdjusted(personKey: String, playerIds: Collection<String>): Boolean {
+        if (playerIds.any { isSplit(it) }) return true
+        val map = merges()
+        return map.containsKey(personKey) || map.values.any { it == personKey }
+    }
+
+    /** Сбрасывает правки, относящиеся к одному человеку. */
+    fun resetFor(personKey: String, playerIds: Collection<String>) {
+        if (!::prefs.isInitialized) return
+        val split = prefs.getStringSet(KEY_SPLIT, emptySet()).orEmpty().toMutableSet()
+        playerIds.forEach { split.remove(it) }
+        val merges = merges().filterNot { it.key == personKey || it.value == personKey }
+        prefs.edit()
+            .putStringSet(KEY_SPLIT, split)
+            .putStringSet(KEY_MERGES, merges.map { "${it.key}>${it.value}" }.toSet())
+            .apply()
+        _changes.value = _changes.value + 1
+    }
 }

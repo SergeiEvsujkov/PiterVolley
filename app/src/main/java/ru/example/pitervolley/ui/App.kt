@@ -42,6 +42,7 @@ import ru.example.pitervolley.ui.screens.GameScreen
 import ru.example.pitervolley.ui.screens.HomeScreen
 import ru.example.pitervolley.ui.screens.PlayerScreen
 import ru.example.pitervolley.ui.screens.SearchScreen
+import ru.example.pitervolley.ui.screens.SettingsScreen
 import ru.example.pitervolley.ui.screens.TeamScreen
 import ru.example.pitervolley.ui.screens.VenueScreen
 import ru.example.pitervolley.ui.screens.VenuesScreen
@@ -128,6 +129,7 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                             launchSingleTop = true
                         }
                     },
+                    onOpenSettings = { nav.navigate("settings") },
                 )
             }
             composable("calendar") {
@@ -136,8 +138,10 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
             composable("divisions") {
                 DivisionsScreen(onOpenDivision = { nav.navigate("division/$it") })
             }
-            composable("search") {
-                SearchScreen(
+            composable("settings") {
+                SettingsScreen(onBack = { nav.popBackStack() })
+            }
+            composable("search") {                SearchScreen(
                     onBack = { nav.popBackStack() },
                     onOpenTeam = { nav.navigate("team/$it") },
                     onOpenPlayer = { nav.navigate("player/$it") },

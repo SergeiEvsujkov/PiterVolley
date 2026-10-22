@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,6 +66,7 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onOpenVenues: () -> Unit,
     onOpenCalendar: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val revision by Repo.revision.collectAsState()
     val favoriteIds by Favorites.teams.collectAsState()
@@ -113,6 +115,9 @@ fun HomeScreen(
         actions = {
             IconButton(onClick = onOpenSearch) {
                 Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = MaterialTheme.colorScheme.primary)
             }
         },
     ) { padding ->
