@@ -228,8 +228,20 @@ fun HomeScreen(
                 }
 
                 item { SectionTitle("По годам рождения") }
-                items(ds.divisions.sortedBy { it.birthYear ?: 0 }.take(7)) { division ->
-                    DivisionRow(division) { onOpenDivision(division.id) }
+                item {
+                    val boys = remember(revision) {
+                        ds.divisions.filter { it.gender == "boys" && it.birthYear != null }
+                            .sortedBy { it.birthYear }
+                    }
+                    val girls = remember(revision) {
+                        ds.divisions.filter { it.gender == "girls" && it.birthYear != null }
+                            .sortedBy { it.birthYear }
+                    }
+                    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                        YearRow("Юноши", boys, onOpenDivision)
+                        Spacer(Modifier.height(8.dp))
+                        YearRow("Девушки", girls, onOpenDivision)
+                    }
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
@@ -295,6 +307,49 @@ private fun CompetitionCard(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+    }
+}
+
+@Composable
+private fun YearRow(label: String, divisions: List<Division>, onOpenDivision: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .width(80.dp)
+                .padding(start = 16.dp, top = 10.dp),
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(end = 16.dp),
+        ) {
+            divisions.chunked(4).forEach { chunk ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    chunk.forEach { division ->
+                        Card(
+                            onClick = { onOpenDivision(division.id) },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        ) {
+                            Text(
+                                text = division.birthYear?.toString().orEmpty(),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
