@@ -26,3 +26,4 @@ etl/raw/
 etl/out/
 .idea/
 device-data.json
+.gitignore.extra
