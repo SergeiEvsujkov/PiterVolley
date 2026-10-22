@@ -77,7 +77,10 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when {
-                    ready -> PiterVolleyApp(startRoute = intent.getStringExtra("route"))
+                    ready -> PiterVolleyApp(
+                        startRoute = intent.getStringExtra("route"),
+                        startQuery = intent.getStringExtra("q"),
+                    )
                     error != null -> LoadingState("Не удалось загрузить данные: $error")
                     else -> LoadingState(null)
                 }

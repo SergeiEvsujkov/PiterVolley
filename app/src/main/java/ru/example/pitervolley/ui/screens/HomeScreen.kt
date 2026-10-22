@@ -15,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +42,8 @@ fun HomeScreen(
     onOpenDivision: (Int) -> Unit,
     onOpenDivisions: () -> Unit,
     onOpenTeam: (String) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenVenues: () -> Unit,
 ) {
     val revision by Repo.revision.collectAsState()
     val favoriteIds by Favorites.teams.collectAsState()
@@ -62,6 +65,14 @@ fun HomeScreen(
     ScreenScaffold(
         title = "PiterVolley",
         subtitle = "Волейбол Санкт-Петербурга · сезон ${ds.season}",
+        actions = {
+            TextButton(onClick = onOpenVenues) {
+                Text("Залы", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            TextButton(onClick = onOpenSearch) {
+                Text("Поиск", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+        },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {

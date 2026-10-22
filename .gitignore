@@ -21,3 +21,6 @@ __pycache__/
 
 *.png
 
+build.log
+etl/raw/
+etl/out/

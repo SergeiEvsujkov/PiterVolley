@@ -35,7 +35,10 @@ import ru.example.pitervolley.ui.screens.DivisionsScreen
 import ru.example.pitervolley.ui.screens.GameScreen
 import ru.example.pitervolley.ui.screens.HomeScreen
 import ru.example.pitervolley.ui.screens.PlayerScreen
+import ru.example.pitervolley.ui.screens.SearchScreen
 import ru.example.pitervolley.ui.screens.TeamScreen
+import ru.example.pitervolley.ui.screens.VenueScreen
+import ru.example.pitervolley.ui.screens.VenuesScreen
 
 private data class Tab(val route: String, val label: String)
 
@@ -46,7 +49,7 @@ private val TABS = listOf(
 )
 
 @Composable
-fun PiterVolleyApp(startRoute: String? = null) {
+fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -109,6 +112,8 @@ fun PiterVolleyApp(startRoute: String? = null) {
                     onOpenDivision = { nav.navigate("division/$it") },
                     onOpenDivisions = { nav.navigate("divisions") },
                     onOpenTeam = { nav.navigate("team/$it") },
+                    onOpenSearch = { nav.navigate("search") },
+                    onOpenVenues = { nav.navigate("venues") },
                 )
             }
             composable("calendar") {
@@ -116,6 +121,31 @@ fun PiterVolleyApp(startRoute: String? = null) {
             }
             composable("divisions") {
                 DivisionsScreen(onOpenDivision = { nav.navigate("division/$it") })
+            }
+            composable("search") {
+                SearchScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenTeam = { nav.navigate("team/$it") },
+                    onOpenPlayer = { nav.navigate("player/$it") },
+                    onOpenDivision = { nav.navigate("division/$it") },
+                    initialQuery = startQuery.orEmpty(),
+                )
+            }
+            composable("venues") {
+                VenuesScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenVenue = { nav.navigate("venue/${android.net.Uri.encode(it)}") },
+                )
+            }
+            composable(
+                "venue/{venue}",
+                arguments = listOf(navArgument("venue") { type = NavType.StringType }),
+            ) { entry ->
+                VenueScreen(
+                    venue = entry.arguments?.getString("venue").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenGame = { nav.navigate("game/${it.divisionId}/${it.id}") },
+                )
             }
             composable(
                 "division/{divisionId}",
