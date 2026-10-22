@@ -136,7 +136,7 @@ fun HomeScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatChip(ds.players.size.toString(), "игроков", Modifier.weight(1f))
+                            StatChip(Repo.personCount().toString(), "игроков", Modifier.weight(1f))
                             StatChip(played.toString(), "сыграно", Modifier.weight(1f))
                         }
                     }
@@ -193,7 +193,7 @@ fun HomeScreen(
                                         .width(104.dp)
                                         .clickable { onOpenPlayer(person.players.first().id) },
                                 ) {
-                                    PlayerAvatar(person.players.first().photo, person.name, 56)
+                                    PlayerAvatar(person.photo, person.name, 56)
                                     Spacer(Modifier.height(6.dp))
                                     Text(
                                         text = person.name.substringBefore(' '),

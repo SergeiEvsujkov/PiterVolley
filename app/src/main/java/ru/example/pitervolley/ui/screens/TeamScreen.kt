@@ -8,20 +8,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Game
+import ru.example.pitervolley.data.PersonOverrides
 import ru.example.pitervolley.data.Player
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.ui.DividerLine
@@ -187,10 +195,12 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
         }
         return
     }
-    val person = Repo.person(Repo.personKeyOf(player))
+    val revision by Repo.revision.collectAsState()
+    val person = remember(revision, playerId) { Repo.person(Repo.personKeyOf(player)) }
     val teams = person?.teams.orEmpty()
     val favorites by Favorites.persons.collectAsState()
     val isFavorite = person != null && Favorites.isPersonFavorite(person.key)
+    var mergeDialog by remember { mutableStateOf(false) }
 
     ScreenScaffold(
         title = player.name,
@@ -271,6 +281,26 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (person != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (person.players.size > 1) {
+                            OutlinedButton(
+                                onClick = {
+                                    person.players
+                                        .filter { it.id != player.id }
+                                        .forEach { PersonOverrides.split(it.id) }
+                                    Repo.rebuildPersons()
+                                },
+                            ) {
+                                Text("Это разные люди", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        OutlinedButton(onClick = { mergeDialog = true }) {
+                            Text("Связать с игроком", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
             }
             Spacer(Modifier.height(24.dp))
             Text(
@@ -280,4 +310,78 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
             )
         }
     }
+
+    if (mergeDialog && person != null) {
+        MergePlayerDialog(
+            excludePerson = person.key,
+            onDismiss = { mergeDialog = false },
+            onPick = { other ->
+                PersonOverrides.merge(person.key, Repo.personKeyOf(other))
+                Repo.rebuildPersons()
+                mergeDialog = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun MergePlayerDialog(
+    excludePerson: String,
+    onDismiss: () -> Unit,
+    onPick: (Player) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val results = remember(query) {
+        val q = query.trim().lowercase()
+        if (q.length < 2) emptyList()
+        else Repo.data.players
+            .filter { it.name.lowercase().contains(q) && Repo.personKeyOf(it) != excludePerson }
+            .take(25)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Связать с игроком") },
+        text = {
+            Column {
+                Text(
+                    "Выберите запись, которая относится к тому же человеку — даже если имя написано иначе.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text("Фамилия или имя") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(Modifier.heightIn(max = 300.dp)) {
+                    items(results, key = { "m-${it.id}" }) { candidate ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(candidate) }
+                                .padding(vertical = 8.dp),
+                        ) {
+                            Text(candidate.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                listOfNotNull(
+                                    candidate.birthYear?.let { "$it г.р." },
+                                    Repo.team(candidate.teamId)?.name,
+                                ).joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+    )
 }

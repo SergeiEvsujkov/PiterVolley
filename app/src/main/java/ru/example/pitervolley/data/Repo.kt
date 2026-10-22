@@ -50,7 +50,7 @@ object Repo {
         divisionById = ds.divisions.associateBy { it.id }
         teamById = ds.teams.associateBy { it.id }
         playersByTeam = ds.players.groupBy { it.teamId }
-        playersByPerson = ds.players.groupBy { personKey(it.name, it.birthYear) }
+        playersByPerson = ds.players.groupBy { effectivePersonKey(it) }
         gamesByDivision = ds.games.groupBy { it.divisionId }
         gamesByTeam = HashMap<String, MutableList<Game>>().apply {
             for (g in ds.games) {
@@ -97,14 +97,31 @@ object Repo {
         return "$tokens|${birthYear ?: 0}"
     }
 
-    fun personKeyOf(player: Player): String = personKey(player.name, player.birthYear)
+    fun personKeyOf(player: Player): String = effectivePersonKey(player)
+
+    /** Ключ с учётом ручных правок: разделение записей и склейка разных написаний. */
+    fun effectivePersonKey(player: Player): String {
+        if (PersonOverrides.isSplit(player.id)) return "id:${player.id}"
+        return PersonOverrides.resolve(personKey(player.name, player.birthYear))
+    }
+
+    fun rebuildPersons() {
+        if (!isLoaded) return
+        playersByPerson = data.players.groupBy { effectivePersonKey(it) }
+        revision.value = revision.value + 1
+    }
+
+    /** Сколько уникальных людей (а не записей в командах). */
+    fun personCount(): Int = if (isLoaded) playersByPerson.size else 0
 
     /**
      * Приводит сохранённое значение к ключу человека. Поддерживает старые записи,
      * где хранился id игрока.
      */
-    fun resolvePersonKey(token: String): String =
-        data.players.firstOrNull { it.id == token }?.let { personKeyOf(it) } ?: token
+    fun resolvePersonKey(token: String): String {
+        data.players.firstOrNull { it.id == token }?.let { return effectivePersonKey(it) }
+        return if (token.startsWith("id:")) token else PersonOverrides.resolve(token)
+    }
 
     fun playersOfPerson(key: String): List<Player> = playersByPerson[key].orEmpty()
 
@@ -221,4 +238,7 @@ data class Person(
     val teams: List<Team>,
 ) {
     val teamNames: String get() = teams.joinToString(", ") { it.name }
+
+    /** У одного человека в разных командах могут быть разные фото — берём первое доступное. */
+    val photo: String? get() = players.firstNotNullOfOrNull { it.photo }
 }

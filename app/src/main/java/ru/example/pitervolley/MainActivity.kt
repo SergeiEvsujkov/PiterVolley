@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.example.pitervolley.data.Favorites
+import ru.example.pitervolley.data.PersonOverrides
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 ) { }
 
                 LaunchedEffect(Unit) {
+                    PersonOverrides.init(app)
                     Favorites.init(app)
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
