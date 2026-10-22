@@ -73,10 +73,11 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                         TextButton(
                             onClick = {
                                 if (!selected) {
+                                    // Без saveState/restoreState: восстановление стека
+                                    // иногда возвращало на предыдущую вкладку вместо нужной.
                                     nav.navigate(tab.route) {
-                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                        popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
                                         launchSingleTop = true
-                                        restoreState = true
                                     }
                                 }
                             },
@@ -111,11 +112,21 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                 HomeScreen(
                     onOpenGame = { nav.navigate("game/${it.divisionId}/${it.id}") },
                     onOpenDivision = { nav.navigate("division/$it") },
-                    onOpenDivisions = { nav.navigate("divisions") },
+                    onOpenDivisions = {
+                        nav.navigate("divisions") {
+                            popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     onOpenTeam = { nav.navigate("team/$it") },
                     onOpenSearch = { nav.navigate("search") },
                     onOpenVenues = { nav.navigate("venues") },
-                    onOpenCalendar = { nav.navigate("calendar") },
+                    onOpenCalendar = {
+                        nav.navigate("calendar") {
+                            popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable("calendar") {
