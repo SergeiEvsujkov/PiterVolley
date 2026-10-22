@@ -189,8 +189,22 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
     }
     val team = Repo.team(player.teamId)
     val division = team?.let { Repo.division(it.divisionId) }
+    val players by Favorites.players.collectAsState()
+    val isFavorite = playerId in players
 
-    ScreenScaffold(title = player.name, onBack = onBack) { padding ->
+    ScreenScaffold(
+        title = player.name,
+        onBack = onBack,
+        actions = {
+            TextButton(onClick = { Favorites.togglePlayer(player.id) }) {
+                Text(
+                    text = if (isFavorite) "★" else "☆",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+    ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()

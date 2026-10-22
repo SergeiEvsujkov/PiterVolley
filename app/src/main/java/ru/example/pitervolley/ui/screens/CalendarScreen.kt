@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ru.example.pitervolley.data.Game
+import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.formatDate
 import ru.example.pitervolley.data.today
@@ -72,9 +74,21 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
     var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
 
     val divisionGender = remember { Repo.data.divisions.associate { it.id to it.gender } }
-    val games = remember(gender) {
-        Repo.data.games
-            .filter { gender == "all" || divisionGender[it.divisionId] == gender }
+    val favoriteTeams by Favorites.teams.collectAsState()
+    val favoritePlayers by Favorites.players.collectAsState()
+    val trackedTeamIds = remember(favoriteTeams, favoritePlayers) {
+        favoriteTeams + favoritePlayers.mapNotNull { id ->
+            Repo.data.players.firstOrNull { it.id == id }?.teamId
+        }
+    }
+    val games = remember(gender, trackedTeamIds) {
+        Repo.data.games.filter { game ->
+            when (gender) {
+                "all" -> true
+                "fav" -> game.homeId in trackedTeamIds || game.awayId in trackedTeamIds
+                else -> divisionGender[game.divisionId] == gender
+            }
+        }
     }
     val byDate = remember(games) { games.filter { it.date != null }.groupBy { it.date!! } }
 
@@ -99,7 +113,12 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            GenderChips(selected = gender, onSelect = { gender = it }, modifier = Modifier.padding(vertical = 6.dp))
+            GenderChips(
+                selected = gender,
+                onSelect = { gender = it },
+                includeFavorites = true,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
 
             androidx.compose.runtime.key(monthMode) {
                 if (monthMode) {

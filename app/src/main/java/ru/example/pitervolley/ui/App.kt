@@ -119,6 +119,7 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                         }
                     },
                     onOpenTeam = { nav.navigate("team/$it") },
+                    onOpenPlayer = { nav.navigate("player/$it") },
                     onOpenSearch = { nav.navigate("search") },
                     onOpenVenues = { nav.navigate("venues") },
                     onOpenCalendar = {

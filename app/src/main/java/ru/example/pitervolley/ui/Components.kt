@@ -370,9 +370,11 @@ fun GenderChips(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
     includeAll: Boolean = true,
+    includeFavorites: Boolean = false,
 ) {
     val options = buildList {
         if (includeAll) add("all" to "Все")
+        if (includeFavorites) add("fav" to "Мои")
         add("boys" to "Юноши")
         add("girls" to "Девушки")
         add("men" to "Мужчины")

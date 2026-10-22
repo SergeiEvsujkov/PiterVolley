@@ -1,5 +1,6 @@
 package ru.example.pitervolley.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +46,7 @@ import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.ui.ClickableRow
 import ru.example.pitervolley.ui.GameCard
+import ru.example.pitervolley.ui.PlayerAvatar
 import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
 import ru.example.pitervolley.ui.StatChip
@@ -59,12 +61,14 @@ fun HomeScreen(
     onOpenDivision: (Int) -> Unit,
     onOpenDivisions: () -> Unit,
     onOpenTeam: (String) -> Unit,
+    onOpenPlayer: (String) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenVenues: () -> Unit,
     onOpenCalendar: () -> Unit,
 ) {
     val revision by Repo.revision.collectAsState()
     val favoriteIds by Favorites.teams.collectAsState()
+    val favoritePlayerIds by Favorites.players.collectAsState()
     val ds = remember(revision) { Repo.data }
 
     val context = LocalContext.current
@@ -83,15 +87,21 @@ fun HomeScreen(
     }
 
     val favoriteTeams = remember(revision, favoriteIds) { favoriteIds.mapNotNull { Repo.team(it) } }
-    val favoriteGames = remember(revision, favoriteIds) {
+    val favoritePlayers = remember(revision, favoritePlayerIds) {
+        favoritePlayerIds.mapNotNull { id -> ds.players.firstOrNull { it.id == id } }
+    }
+    val trackedTeamIds = remember(revision, favoriteIds, favoritePlayerIds) {
+        favoriteIds + favoritePlayers.map { it.teamId }
+    }
+    val favoriteGames = remember(revision, trackedTeamIds) {
         val start = ru.example.pitervolley.data.today()
         ds.games
             .filter {
-                (it.homeId in favoriteIds || it.awayId in favoriteIds) &&
+                (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) &&
                     it.localDate != null && !it.localDate!!.isBefore(start)
             }
             .sortedWith(compareBy({ it.localDate }, { it.time }))
-            .take(3)
+            .take(5)
     }
     val upcoming = remember(revision) { Repo.upcoming(6) }
     val played = remember(revision) { ds.games.count { it.hasResult } }
@@ -167,11 +177,48 @@ fun HomeScreen(
                             Text("›", style = MaterialTheme.typography.titleLarge)
                         }
                     }
-                    if (favoriteGames.isNotEmpty()) {
-                        item { SectionTitle("Их игры") }
-                        items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
-                            GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+                }
+
+                if (favoritePlayers.isNotEmpty()) {
+                    item { SectionTitle("Мои игроки") }
+                    item {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(favoritePlayers, key = { "p-${it.id}" }) { player ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .width(96.dp)
+                                        .clickable { onOpenPlayer(player.id) },
+                                ) {
+                                    PlayerAvatar(player.photo, player.name, 56)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = player.name.substringBefore(' '),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = Repo.team(player.teamId)?.name.orEmpty(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
                         }
+                    }
+                }
+
+                if (favoriteGames.isNotEmpty()) {
+                    item { SectionTitle("Их игры") }
+                    items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
+                        GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
                     }
                 }
 
