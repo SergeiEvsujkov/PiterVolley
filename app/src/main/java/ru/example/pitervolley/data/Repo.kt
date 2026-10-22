@@ -19,6 +19,7 @@ object Repo {
     private lateinit var divisionById: Map<Int, Division>
     private lateinit var teamById: Map<String, Team>
     private lateinit var playersByTeam: Map<String, List<Player>>
+    private lateinit var playersByPerson: Map<String, List<Player>>
     private lateinit var gamesByDivision: Map<Int, List<Game>>
     private lateinit var gamesByTeam: Map<String, List<Game>>
     private val standingsCache = HashMap<Int, List<StandingRow>>()
@@ -49,6 +50,7 @@ object Repo {
         divisionById = ds.divisions.associateBy { it.id }
         teamById = ds.teams.associateBy { it.id }
         playersByTeam = ds.players.groupBy { it.teamId }
+        playersByPerson = ds.players.groupBy { personKey(it.name, it.birthYear) }
         gamesByDivision = ds.games.groupBy { it.divisionId }
         gamesByTeam = HashMap<String, MutableList<Game>>().apply {
             for (g in ds.games) {
@@ -77,6 +79,44 @@ object Repo {
 
     fun game(divisionId: Int, id: String): Game? =
         gamesByDivision[divisionId]?.firstOrNull { it.id == id } ?: data.games.firstOrNull { it.id == id }
+
+    // ---------------------------------------------------------------- players as persons
+
+    /**
+     * Один человек может быть заявлен за несколько команд (разные дивизионы/возрасты).
+     * Ключ человека — нормализованное ФИО + год рождения.
+     */
+    fun personKey(name: String, birthYear: Int?): String {
+        val tokens = name.lowercase()
+            .replace('ё', 'е')
+            .replace(".", " ")
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .sorted()
+            .joinToString(" ")
+        return "$tokens|${birthYear ?: 0}"
+    }
+
+    fun personKeyOf(player: Player): String = personKey(player.name, player.birthYear)
+
+    /**
+     * Приводит сохранённое значение к ключу человека. Поддерживает старые записи,
+     * где хранился id игрока.
+     */
+    fun resolvePersonKey(token: String): String =
+        data.players.firstOrNull { it.id == token }?.let { personKeyOf(it) } ?: token
+
+    fun playersOfPerson(key: String): List<Player> = playersByPerson[key].orEmpty()
+
+    fun teamsOfPerson(key: String): List<Team> =
+        playersOfPerson(key).mapNotNull { team(it.teamId) }.distinctBy { it.id }
+
+    fun person(key: String): Person? {
+        val players = playersOfPerson(key)
+        if (players.isEmpty()) return null
+        val first = players.first()
+        return Person(key, first.name, first.birthYear, players, teamsOfPerson(key))
+    }
 
     fun divisionsByCompetition(): Map<String, List<Division>> =
         data.divisions.groupBy { it.competition }.toSortedMap()
@@ -157,8 +197,7 @@ object Repo {
     }
 }
 
-data class StandingRow(val team: Team) {
-    var played: Int = 0
+data class StandingRow(val team: Team) {    var played: Int = 0
     var wins: Int = 0
     var losses: Int = 0
     var points: Int = 0
@@ -171,4 +210,15 @@ data class StandingRow(val team: Team) {
     val ballsRatio: Double get() = if (ballsAgainst == 0) ballsFor.toDouble() else ballsFor.toDouble() / ballsAgainst
     val setsText: String get() = "$setsFor:$setsAgainst"
     val ballsText: String get() = "$ballsFor:$ballsAgainst"
+}
+
+/** Один человек: может быть заявлен за несколько команд разных дивизионов. */
+data class Person(
+    val key: String,
+    val name: String,
+    val birthYear: Int?,
+    val players: List<Player>,
+    val teams: List<Team>,
+) {
+    val teamNames: String get() = teams.joinToString(", ") { it.name }
 }

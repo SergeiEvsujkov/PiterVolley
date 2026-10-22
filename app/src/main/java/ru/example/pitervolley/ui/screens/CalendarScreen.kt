@@ -75,10 +75,10 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
 
     val divisionGender = remember { Repo.data.divisions.associate { it.id to it.gender } }
     val favoriteTeams by Favorites.teams.collectAsState()
-    val favoritePlayers by Favorites.players.collectAsState()
-    val trackedTeamIds = remember(favoriteTeams, favoritePlayers) {
-        favoriteTeams + favoritePlayers.mapNotNull { id ->
-            Repo.data.players.firstOrNull { it.id == id }?.teamId
+    val favoritePersons by Favorites.persons.collectAsState()
+    val trackedTeamIds = remember(favoriteTeams, favoritePersons) {
+        favoriteTeams + favoritePersons.flatMap { key ->
+            Repo.teamsOfPerson(Repo.resolvePersonKey(key)).map { it.id }
         }
     }
     val games = remember(gender, trackedTeamIds) {

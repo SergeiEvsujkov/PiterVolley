@@ -68,7 +68,7 @@ fun HomeScreen(
 ) {
     val revision by Repo.revision.collectAsState()
     val favoriteIds by Favorites.teams.collectAsState()
-    val favoritePlayerIds by Favorites.players.collectAsState()
+    val favoritePersonKeys by Favorites.persons.collectAsState()
     val ds = remember(revision) { Repo.data }
 
     val context = LocalContext.current
@@ -87,11 +87,11 @@ fun HomeScreen(
     }
 
     val favoriteTeams = remember(revision, favoriteIds) { favoriteIds.mapNotNull { Repo.team(it) } }
-    val favoritePlayers = remember(revision, favoritePlayerIds) {
-        favoritePlayerIds.mapNotNull { id -> ds.players.firstOrNull { it.id == id } }
+    val favoritePersons = remember(revision, favoritePersonKeys) {
+        favoritePersonKeys.mapNotNull { Repo.person(Repo.resolvePersonKey(it)) }
     }
-    val trackedTeamIds = remember(revision, favoriteIds, favoritePlayerIds) {
-        favoriteIds + favoritePlayers.map { it.teamId }
+    val trackedTeamIds = remember(revision, favoriteIds, favoritePersons) {
+        favoriteIds + favoritePersons.flatMap { person -> person.teams.map { it.id } }
     }
     val favoriteGames = remember(revision, trackedTeamIds) {
         val start = ru.example.pitervolley.data.today()
@@ -179,31 +179,31 @@ fun HomeScreen(
                     }
                 }
 
-                if (favoritePlayers.isNotEmpty()) {
+                if (favoritePersons.isNotEmpty()) {
                     item { SectionTitle("Мои игроки") }
                     item {
                         androidx.compose.foundation.lazy.LazyRow(
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(favoritePlayers, key = { "p-${it.id}" }) { player ->
+                            items(favoritePersons, key = { "p-${it.key}" }) { person ->
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
-                                        .width(96.dp)
-                                        .clickable { onOpenPlayer(player.id) },
+                                        .width(104.dp)
+                                        .clickable { onOpenPlayer(person.players.first().id) },
                                 ) {
-                                    PlayerAvatar(player.photo, player.name, 56)
+                                    PlayerAvatar(person.players.first().photo, person.name, 56)
                                     Spacer(Modifier.height(6.dp))
                                     Text(
-                                        text = player.name.substringBefore(' '),
+                                        text = person.name.substringBefore(' '),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        text = Repo.team(player.teamId)?.name.orEmpty(),
+                                        text = if (person.teams.size > 1) "${person.teams.size} команды" else person.teamNames,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,

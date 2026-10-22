@@ -4,7 +4,10 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** Favorite teams and players, stored in SharedPreferences. */
+/**
+ * Favorite teams and players. Players are stored as person keys, so one person
+ * who is registered for several teams is still a single favourite.
+ */
 object Favorites {
 
     private const val PREFS = "favorites"
@@ -16,14 +19,14 @@ object Favorites {
     private val _teams = MutableStateFlow<Set<String>>(emptySet())
     val teams: StateFlow<Set<String>> get() = _teams
 
-    private val _players = MutableStateFlow<Set<String>>(emptySet())
-    val players: StateFlow<Set<String>> get() = _players
+    private val _persons = MutableStateFlow<Set<String>>(emptySet())
+    val persons: StateFlow<Set<String>> get() = _persons
 
     fun init(context: Context) {
         if (::prefs.isInitialized) return
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         _teams.value = prefs.getStringSet(KEY_TEAMS, emptySet())?.toSet().orEmpty()
-        _players.value = prefs.getStringSet(KEY_PLAYERS, emptySet())?.toSet().orEmpty()
+        _persons.value = prefs.getStringSet(KEY_PLAYERS, emptySet())?.toSet().orEmpty()
     }
 
     fun isFavorite(teamId: String): Boolean = teamId in _teams.value
@@ -36,21 +39,35 @@ object Favorites {
         return teamId in next
     }
 
-    fun isPlayerFavorite(playerId: String): Boolean = playerId in _players.value
-
-    fun togglePlayer(playerId: String): Boolean {
-        val current = _players.value
-        val next = if (playerId in current) current - playerId else current + playerId
-        _players.value = next
-        prefs.edit().putStringSet(KEY_PLAYERS, next).apply()
-        return playerId in next
+    /** Ключи людей, приведённые к актуальному виду (старые записи хранили id игрока). */
+    fun personKeys(): Set<String> {
+        if (!Repo.isLoaded) return _persons.value
+        return _persons.value.map { Repo.resolvePersonKey(it) }.toSet()
     }
 
-    /** Team ids of the favourite teams and of the teams the favourite players belong to. */
-    fun trackedTeamIds(): Set<String> {
-        val teamsOfPlayers = _players.value.mapNotNull { playerId ->
-            Repo.data.players.firstOrNull { it.id == playerId }?.teamId
+    fun isPersonFavorite(key: String): Boolean = key in personKeys()
+
+    fun togglePerson(key: String): Boolean {
+        val current = _persons.value
+        val normalized = if (Repo.isLoaded) Repo.resolvePersonKey(key) else key
+        val exists = normalized in personKeys()
+        val next = if (exists) {
+            _persons.value.filterNot { if (Repo.isLoaded) Repo.resolvePersonKey(it) == normalized else it == normalized }
+                .toSet()
+        } else {
+            _persons.value + normalized
         }
-        return _teams.value + teamsOfPlayers
+        _persons.value = next
+        prefs.edit().putStringSet(KEY_PLAYERS, next).apply()
+        return !exists
+    }
+
+    /** Team ids of the favourite teams and of every team the favourite people play for. */
+    fun trackedTeamIds(): Set<String> {
+        if (!Repo.isLoaded) return _teams.value
+        val teamsOfPersons = personKeys().flatMap { key ->
+            Repo.teamsOfPerson(key).map { it.id }
+        }
+        return _teams.value + teamsOfPersons
     }
 }

@@ -187,21 +187,23 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
         }
         return
     }
-    val team = Repo.team(player.teamId)
-    val division = team?.let { Repo.division(it.divisionId) }
-    val players by Favorites.players.collectAsState()
-    val isFavorite = playerId in players
+    val person = Repo.person(Repo.personKeyOf(player))
+    val teams = person?.teams.orEmpty()
+    val favorites by Favorites.persons.collectAsState()
+    val isFavorite = person != null && Favorites.isPersonFavorite(person.key)
 
     ScreenScaffold(
         title = player.name,
         onBack = onBack,
         actions = {
-            TextButton(onClick = { Favorites.togglePlayer(player.id) }) {
-                Text(
-                    text = if (isFavorite) "★" else "☆",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+            if (person != null) {
+                TextButton(onClick = { Favorites.togglePerson(person.key) }) {
+                    Text(
+                        text = if (isFavorite) "★" else "☆",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         },
     ) { padding ->
@@ -229,28 +231,45 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
             Spacer(Modifier.height(24.dp))
             DividerLine()
             Spacer(Modifier.height(16.dp))
-            if (team != null) {
-                Text("Команда", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (teams.isNotEmpty()) {
+                Text(
+                    text = if (teams.size > 1) "Заявлен за ${teams.size} команды" else "Команда",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Spacer(Modifier.height(8.dp))
-                Card(
-                    onClick = { onOpenTeam(team.id) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TeamLogo(team, 44)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(team.name, style = MaterialTheme.typography.bodyLarge)
-                            if (division != null) {
-                                Text(
-                                    "${division.competition} · ${division.subtitle}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                teams.forEach { team ->
+                    val division = Repo.division(team.divisionId)
+                    Card(
+                        onClick = { onOpenTeam(team.id) },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TeamLogo(team, 44)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(team.name, style = MaterialTheme.typography.bodyLarge)
+                                if (division != null) {
+                                    Text(
+                                        "${division.competition} · ${division.subtitle}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
+                            Text("›", style = MaterialTheme.typography.titleLarge)
                         }
-                        Text("›", style = MaterialTheme.typography.titleLarge)
                     }
+                }
+                if (teams.size > 1) {
+                    Text(
+                        text = "Игры всех команд учитываются в общем списке избранного.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             Spacer(Modifier.height(24.dp))
