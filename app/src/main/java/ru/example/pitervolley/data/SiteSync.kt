@@ -47,6 +47,13 @@ object SiteSync {
         return "обновлено " + fmt.format(Date(ts))
     }
 
+    /** "23.10.2026 в 01:53" или null, если данные ещё ни разу не обновлялись. */
+    fun lastSyncDateText(context: Context): String? {
+        val ts = lastSync(context)
+        if (ts == 0L) return null
+        return SimpleDateFormat("dd.MM.yyyy в HH:mm", java.util.Locale.forLanguageTag("ru-RU")).format(Date(ts))
+    }
+
     suspend fun refresh(context: Context, force: Boolean): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             val now = System.currentTimeMillis()

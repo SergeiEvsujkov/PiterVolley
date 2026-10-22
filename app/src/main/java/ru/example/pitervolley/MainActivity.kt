@@ -31,11 +31,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Repo
-import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
 import ru.example.pitervolley.ui.PiterVolleyApp
 import ru.example.pitervolley.ui.theme.PiterVolleyTheme
-import ru.example.pitervolley.work.SyncWorker
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +50,6 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     Favorites.init(app)
-                    SyncWorker.schedule(app)
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         ContextCompat.checkSelfPermission(app, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -70,8 +67,8 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // Данные с сайта обновляются только вручную, кнопкой «Обновить».
                     if (error == null) {
-                        runCatching { SiteSync.refresh(app, force = false) }
                         runCatching { GameNotifications.notifyTomorrow(app) }
                     }
                 }

@@ -43,6 +43,7 @@ import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
 import ru.example.pitervolley.ui.StatChip
 import ru.example.pitervolley.ui.TeamLogo
+import ru.example.pitervolley.ui.UpdateBar
 
 @Composable
 fun HomeScreen(
@@ -82,24 +83,6 @@ fun HomeScreen(
             TextButton(onClick = onOpenSearch) {
                 Text("Поиск", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
-            TextButton(
-                enabled = !refreshing,
-                onClick = {
-                    scope.launch {
-                        refreshing = true
-                        syncMessage = null
-                        val result = SiteSync.refresh(context, force = true)
-                        refreshing = false
-                        syncMessage = if (result.isSuccess) null else "не удалось обновить"
-                    }
-                },
-            ) {
-                if (refreshing) {
-                    CircularProgressIndicator(Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Обновить", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                }
-            }
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
@@ -122,14 +105,19 @@ fun HomeScreen(
             }
 
             item {
-                Text(
-                    text = syncMessage
-                        ?: if (refreshing) "Обновляем данные с сайта федерации…"
-                        else SiteSync.lastSyncText(context),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (syncMessage != null) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                UpdateBar(
+                    subtitle = SiteSync.lastSyncDateText(context) ?: "ещё не обновляли",
+                    refreshing = refreshing,
+                    isError = syncMessage != null,
+                    onRefresh = {
+                        scope.launch {
+                            refreshing = true
+                            syncMessage = null
+                            val result = SiteSync.refresh(context, force = true)
+                            refreshing = false
+                            syncMessage = if (result.isSuccess) null else "не удалось обновить"
+                        }
+                    },
                 )
             }
 
