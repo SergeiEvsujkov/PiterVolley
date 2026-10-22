@@ -150,6 +150,15 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit) 
             }
             DividerLine()
         }
+        item {
+            Text(
+                text = "Места: победы → очки → партии → мячи → личные встречи.\n" +
+                    "Очки: 3 за 3:0–3:1, 2 за 3:2, 1 за поражение 2:3.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
     }
 }
 

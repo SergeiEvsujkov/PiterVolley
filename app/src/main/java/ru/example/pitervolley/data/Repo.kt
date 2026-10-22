@@ -223,16 +223,94 @@ object Repo {
                 }
             }
         }
-        rows.values.sortedWith(
-            compareByDescending<StandingRow> { it.points }
-                .thenByDescending { it.setsRatio }
-                .thenByDescending { it.ballsRatio }
+        val ranked = rows.values.sortedWith(RANK_ORDER)
+        orderWithHeadToHead(ranked, gamesOf(divisionId))
+    }
+
+    /**
+     * Порядок мест по п. 6.5.2 Первенства СПб: победы → очки → партии → мячи,
+     * при полном равенстве — личные встречи.
+     */
+    private val RANK_ORDER = Comparator<StandingRow> { a, b ->
+        var c = b.wins.compareTo(a.wins)
+        if (c != 0) return@Comparator c
+        c = b.points.compareTo(a.points)
+        if (c != 0) return@Comparator c
+        c = ratioCompare(a.setsFor, a.setsAgainst, b.setsFor, b.setsAgainst)
+        if (c != 0) return@Comparator -c
+        c = ratioCompare(a.ballsFor, a.ballsAgainst, b.ballsFor, b.ballsAgainst)
+        if (c != 0) return@Comparator -c
+        0
+    }
+
+    private fun orderWithHeadToHead(ranked: List<StandingRow>, games: List<Game>): List<StandingRow> {
+        val result = ArrayList<StandingRow>(ranked.size)
+        var i = 0
+        while (i < ranked.size) {
+            var j = i + 1
+            while (j < ranked.size && RANK_ORDER.compare(ranked[i], ranked[j]) == 0) j++
+            val group = ranked.subList(i, j)
+            if (group.size == 1) result += group[0] else result += sortByHeadToHead(group, games)
+            i = j
+        }
+        return result
+    }
+
+    /** Очки, набранные командами в матчах только между собой. */
+    private fun sortByHeadToHead(group: List<StandingRow>, games: List<Game>): List<StandingRow> {
+        val ids = group.map { it.team.id }.toSet()
+        val mini = HashMap<String, Int>()
+        for (g in games) {
+            if (!g.hasResult || g.sets.isEmpty()) continue
+            if (g.homeId !in ids || g.awayId !in ids) continue
+            val hs = g.homeSets
+            val asets = g.awaySets
+            when {
+                hs > asets -> if (hs == 3 && asets == 2) {
+                    mini[g.homeId] = (mini[g.homeId] ?: 0) + 2
+                    mini[g.awayId] = (mini[g.awayId] ?: 0) + 1
+                } else {
+                    mini[g.homeId] = (mini[g.homeId] ?: 0) + 3
+                }
+                asets > hs -> if (asets == 3 && hs == 2) {
+                    mini[g.awayId] = (mini[g.awayId] ?: 0) + 2
+                    mini[g.homeId] = (mini[g.homeId] ?: 0) + 1
+                } else {
+                    mini[g.awayId] = (mini[g.awayId] ?: 0) + 3
+                }
+            }
+        }
+        return group.sortedWith(
+            compareByDescending<StandingRow> { mini[it.team.id] ?: 0 }
+                .thenByDescending { it.wins }
                 .thenBy { it.team.name },
         )
     }
+
+    /** Сравнение дробей без потери точности; x/0 при x > 0 — бесконечность, 0/0 — ноль. */
+    private fun ratioCompare(aNum: Int, aDen: Int, bNum: Int, bDen: Int): Int {
+        // 0:0 (игр не было) считаем как 0, а не как «ничья» с любым отношением
+        val aEmpty = aNum == 0 && aDen == 0
+        val bEmpty = bNum == 0 && bDen == 0
+        if (aEmpty && bEmpty) return 0
+        if (aEmpty) return if (bNum == 0) 0 else -1
+        if (bEmpty) return if (aNum == 0) 0 else 1
+
+        val aInf = aDen == 0 && aNum > 0
+        val bInf = bDen == 0 && bNum > 0
+        if (aInf || bInf) return when {
+            aInf && bInf -> 0
+            aInf -> 1
+            else -> -1
+        }
+        val left = aNum.toLong() * bDen
+        val right = bNum.toLong() * aDen
+        return left.compareTo(right)
+    }
 }
 
-data class StandingRow(val team: Team) {    var played: Int = 0
+data class StandingRow(val team: Team) {
+    var played: Int = 0
     var wins: Int = 0
     var losses: Int = 0
     var points: Int = 0
