@@ -25,3 +25,4 @@ build.log
 etl/raw/
 etl/out/
 .idea/
+device-data.json
