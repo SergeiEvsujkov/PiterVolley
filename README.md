@@ -40,7 +40,8 @@ docs/data.json       опубликованный датасет для прил
 2. Скрипт скачивает 18 страниц дивизионов, ~170 страниц команд и Google-таблицу,
    нормализует и сопоставляет их.
 3. Результат копируется в `docs/data.json` и коммитится.
-4. GitHub Pages отдаёт файл по адресу `https://<user>.github.io/<repo>/data.json`.
+4. GitHub Pages отдаёт файл по адресу `https://<user>.github.io/<repo>/data.json`
+   (для этого репозитория — `https://sergeievsujkov.github.io/PiterVolley/data.json`).
 5. Приложение при старте (и раз в 6 часов через WorkManager) скачивает свежий JSON,
    кэширует его в `filesDir` и подменяет данные; при отсутствии сети работает копия из APK.
 

@@ -20,7 +20,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Data published by the ETL on GitHub Pages. Empty string disables remote sync.
-        buildConfigField("String", "DATA_URL", "\"https://coffeemolkin.github.io/piter-volley/data.json\"")
+        buildConfigField("String", "DATA_URL", "\"https://sergeievsujkov.github.io/PiterVolley/data.json\"")
     }
 
     buildTypes {
