@@ -11,6 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -20,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -40,12 +46,12 @@ import ru.example.pitervolley.ui.screens.TeamScreen
 import ru.example.pitervolley.ui.screens.VenueScreen
 import ru.example.pitervolley.ui.screens.VenuesScreen
 
-private data class Tab(val route: String, val label: String)
+private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
 private val TABS = listOf(
-    Tab("home", "Главная"),
-    Tab("calendar", "Календарь"),
-    Tab("divisions", "Дивизионы"),
+    Tab("home", "Главная", Icons.Filled.Home),
+    Tab("calendar", "Календарь", Icons.Filled.DateRange),
+    Tab("divisions", "Дивизионы", Icons.Filled.List),
 )
 
 @Composable
@@ -76,23 +82,18 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                             },
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = tab.label,
+                                    tint = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                                 Text(
                                     tab.label,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Box(
-                                    Modifier
-                                        .padding(top = 4.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(
-                                            if (selected) MaterialTheme.colorScheme.primary
-                                            else androidx.compose.ui.graphics.Color.Transparent,
-                                        )
-                                        .height(3.dp)
-                                        .width(24.dp),
                                 )
                             }
                         }
@@ -114,6 +115,7 @@ fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
                     onOpenTeam = { nav.navigate("team/$it") },
                     onOpenSearch = { nav.navigate("search") },
                     onOpenVenues = { nav.navigate("venues") },
+                    onOpenCalendar = { nav.navigate("calendar") },
                 )
             }
             composable("calendar") {

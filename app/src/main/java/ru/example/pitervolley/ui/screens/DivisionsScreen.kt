@@ -1,51 +1,177 @@
 package ru.example.pitervolley.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ru.example.pitervolley.data.Division
 import ru.example.pitervolley.data.Repo
-import ru.example.pitervolley.ui.ClickableRow
+import ru.example.pitervolley.ui.EmptyState
+import ru.example.pitervolley.ui.GenderChips
 import ru.example.pitervolley.ui.ScreenScaffold
+import ru.example.pitervolley.ui.genderColor
 
 @Composable
 fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
-    ScreenScaffold(title = "Дивизионы", subtitle = "Сезон ${Repo.data.season}") { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            Repo.divisionsByCompetition().forEach { (competition, divisions) ->
-                item(key = "c-$competition") {
-                    Text(
-                        text = competition,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
-                    )
-                }
-                items(divisions, key = { "d-${it.id}" }) { division ->
-                    ClickableRow({ onOpenDivision(division.id) }) {
-                        Column(Modifier.weight(1f)) {
-                            Text(division.subtitle, style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                text = "${Repo.teamsOf(division.id).size} команд · ${Repo.gamesOf(division.id).size} игр",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Text("›", style = MaterialTheme.typography.titleLarge)
+    var gender by rememberSaveable { mutableStateOf("boys") }
+    var year by rememberSaveable { mutableStateOf(0) }
+
+    val divisions = remember(gender) { Repo.data.divisions.filter { it.gender == gender } }
+    val years = remember(divisions) { divisions.mapNotNull { it.birthYear }.distinct().sorted() }
+    val shown = remember(gender, year, divisions) {
+        divisions.filter { year == 0 || it.birthYear == year }
+            .sortedWith(compareBy({ it.birthYear ?: 0 }, { it.teamLabel ?: 0 }))
+    }
+
+    ScreenScaffold(
+        title = "Дивизионы",
+        subtitle = "Сезон ${Repo.data.season}",
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            GenderChips(
+                selected = gender,
+                onSelect = { gender = it; year = 0 },
+                includeAll = false,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
+            if (years.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    item {
+                        FilterChip(
+                            selected = year == 0,
+                            onClick = { year = 0 },
+                            label = { Text("Все годы", style = MaterialTheme.typography.labelMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondary,
+                            ),
+                        )
+                    }
+                    items(years) { y ->
+                        FilterChip(
+                            selected = year == y,
+                            onClick = { year = y },
+                            label = { Text("$y", style = MaterialTheme.typography.labelMedium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondary,
+                            ),
+                        )
                     }
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
+
+            if (shown.isEmpty()) {
+                EmptyState("Дивизионов нет")
+            } else {
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+                    items(shown, key = { it.id }) { division ->
+                        DivisionCard(division) { onOpenDivision(division.id) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DivisionCard(division: Division, onClick: () -> Unit) {
+    val teams = Repo.teamsOf(division.id)
+    val games = Repo.gamesOf(division.id)
+    val played = games.count { it.hasResult }
+    val accent = genderColor(division.gender)
+
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = division.subtitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = division.competition,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text("›", style = MaterialTheme.typography.titleLarge, color = accent)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${teams.size} команд",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(10.dp))
+                Text("·", color = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "$played из ${games.size} игр",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            val fraction = if (games.isEmpty()) 0f else played.toFloat() / games.size
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(fraction)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(accent),
+                )
+            }
         }
     }
 }

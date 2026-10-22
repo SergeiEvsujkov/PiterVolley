@@ -9,15 +9,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,7 +50,9 @@ import ru.example.pitervolley.ui.SectionTitle
 import ru.example.pitervolley.ui.StatChip
 import ru.example.pitervolley.ui.TeamLogo
 import ru.example.pitervolley.ui.UpdateBar
+import ru.example.pitervolley.ui.theme.BrandOrange
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onOpenGame: (Game) -> Unit,
@@ -53,6 +61,7 @@ fun HomeScreen(
     onOpenTeam: (String) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenVenues: () -> Unit,
+    onOpenCalendar: () -> Unit,
 ) {
     val revision by Repo.revision.collectAsState()
     val favoriteIds by Favorites.teams.collectAsState()
@@ -63,6 +72,16 @@ fun HomeScreen(
     var refreshing by remember { mutableStateOf(false) }
     var syncMessage by remember { mutableStateOf<String?>(null) }
 
+    val doRefresh: () -> Unit = {
+        scope.launch {
+            refreshing = true
+            syncMessage = null
+            val result = SiteSync.refresh(context, force = true)
+            refreshing = false
+            syncMessage = if (result.isSuccess) null else "ошибка"
+        }
+    }
+
     val favoriteTeams = remember(revision, favoriteIds) { favoriteIds.mapNotNull { Repo.team(it) } }
     val favoriteGames = remember(revision, favoriteIds) {
         val start = ru.example.pitervolley.data.today()
@@ -72,139 +91,200 @@ fun HomeScreen(
                     it.localDate != null && !it.localDate!!.isBefore(start)
             }
             .sortedWith(compareBy({ it.localDate }, { it.time }))
-            .take(5)
+            .take(3)
     }
-    val upcoming = remember(revision) { Repo.upcoming(12) }
+    val upcoming = remember(revision) { Repo.upcoming(6) }
+    val played = remember(revision) { ds.games.count { it.hasResult } }
+    val venuesCount = remember(revision) { ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size }
 
     ScreenScaffold(
         title = "PiterVolley",
-        subtitle = "Сезон ${ds.season}",
+        subtitle = "Волейбол Санкт-Петербурга · сезон ${ds.season}",
         actions = {
-            TextButton(onClick = onOpenSearch) {
-                Text("Поиск", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            IconButton(onClick = onOpenSearch) {
+                Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = MaterialTheme.colorScheme.primary)
             }
         },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatChip(ds.divisions.size.toString(), "дивизионы", Modifier.weight(1f))
-                        StatChip(ds.teams.size.toString(), "команды", Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatChip(ds.players.size.toString(), "игроки", Modifier.weight(1f))
-                        StatChip(ds.games.count { it.hasResult }.toString(), "сыграно", Modifier.weight(1f))
-                    }
-                }
-            }
-
-            item {
-                UpdateBar(
-                    subtitle = SiteSync.lastSyncDateText(context) ?: "ещё не обновляли",
-                    refreshing = refreshing,
-                    isError = syncMessage != null,
-                    onRefresh = {
-                        scope.launch {
-                            refreshing = true
-                            syncMessage = null
-                            val result = SiteSync.refresh(context, force = true)
-                            refreshing = false
-                            syncMessage = if (result.isSuccess) null else "не удалось обновить"
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = doRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                item {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatChip(ds.divisions.size.toString(), "дивизионов", Modifier.weight(1f))
+                            StatChip(ds.teams.size.toString(), "команд", Modifier.weight(1f))
                         }
-                    },
-                )
-            }
-
-            if (favoriteTeams.isNotEmpty()) {
-                item { SectionTitle("Мои команды") }
-                items(favoriteTeams, key = { "fav-${it.id}" }) { team ->
-                    ClickableRow({ onOpenTeam(team.id) }) {
-                        TeamLogo(team, 36)
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            team.name,
-                            Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text("›", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatChip(ds.players.size.toString(), "игроков", Modifier.weight(1f))
+                            StatChip(played.toString(), "сыграно", Modifier.weight(1f))
+                        }
                     }
                 }
-                if (favoriteGames.isNotEmpty()) {
-                    item { SectionTitle("Их игры") }
-                    items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
-                        GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+
+                item {
+                    UpdateBar(
+                        subtitle = SiteSync.lastSyncDateText(context) ?: "ещё не обновляли",
+                        refreshing = refreshing,
+                        isError = syncMessage != null,
+                        onRefresh = doRefresh,
+                    )
+                }
+
+                if (favoriteTeams.isNotEmpty()) {
+                    item { SectionTitle("Мои команды") }
+                    items(favoriteTeams, key = { "fav-${it.id}" }) { team ->
+                        ClickableRow({ onOpenTeam(team.id) }) {
+                            TeamLogo(team, 36)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                team.name,
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text("›", style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                    if (favoriteGames.isNotEmpty()) {
+                        item { SectionTitle("Их игры") }
+                        items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
+                            GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+                        }
                     }
                 }
-            }
 
-            item { SectionTitle("Ближайшие игры") }
-            if (upcoming.isEmpty()) {
-                item { ru.example.pitervolley.ui.EmptyState("Ближайших игр пока нет") }
-            }
-            items(upcoming, key = { "${it.divisionId}-${it.id}" }) { game ->
-                GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
-            }
-
-            item { SectionTitle("Залы") }
-            item {
-                val venuesCount = remember(revision) {
-                    ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size
+                item {
+                    SectionTitle(
+                        text = "Ближайшие игры",
+                        trailing = {
+                            TextButton(onClick = onOpenCalendar) {
+                                Text("Все игры", style = MaterialTheme.typography.labelMedium)
+                            }
+                        },
+                    )
                 }
-                Card(
-                    onClick = onOpenVenues,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("Адреса игр", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            "$venuesCount залов · список игр по каждому",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                if (upcoming.isEmpty()) {
+                    item { ru.example.pitervolley.ui.EmptyState("Ближайших игр пока нет") }
+                }
+                items(upcoming, key = { "${it.divisionId}-${it.id}" }) { game ->
+                    GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+                }
+
+                item { SectionTitle("Соревнования") }
+                item {
+                    CompetitionCards(
+                        onOpenDivisions = onOpenDivisions,
+                        onOpenDivision = onOpenDivision,
+                    )
+                }
+
+                item { SectionTitle("Залы") }
+                item {
+                    Card(
+                        onClick = onOpenVenues,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Place, contentDescription = null, tint = BrandOrange)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Адреса игр", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "$venuesCount залов · расписание по каждому",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text("›", style = MaterialTheme.typography.titleLarge)
+                        }
                     }
                 }
-            }
 
-            item { SectionTitle("Соревнования") }
-            items(Repo.divisionsByCompetition().entries.toList()) { entry ->
-                val divisions = entry.value
-                val games = divisions.sumOf { d -> Repo.gamesOf(d.id).size }
-                Card(
-                    onClick = onOpenDivisions,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(entry.key, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            "${divisions.size} дивизионов · $games игр",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                item { SectionTitle("По годам рождения") }
+                items(ds.divisions.sortedBy { it.birthYear ?: 0 }.take(7)) { division ->
+                    DivisionRow(division) { onOpenDivision(division.id) }
                 }
+                item { Spacer(Modifier.height(24.dp)) }
             }
+        }
+    }
+}
 
-            item { SectionTitle("По годам рождения") }
-            items(ds.divisions.sortedBy { it.birthYear ?: 0 }) { division ->
-                DivisionRow(division) { onOpenDivision(division.id) }
-            }
-            item { Spacer(Modifier.height(24.dp)) }
+@Composable
+private fun CompetitionCards(onOpenDivisions: () -> Unit, onOpenDivision: (Int) -> Unit) {
+    val divisions = Repo.data.divisions
+    val championship = divisions.filter { it.birthYear == null }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        CompetitionCard(
+            title = "Первенство",
+            subtitle = "Юноши и девушки",
+            count = divisions.count { it.birthYear != null },
+            modifier = Modifier.weight(1f),
+            onClick = onOpenDivisions,
+        )
+        CompetitionCard(
+            title = "Чемпионат",
+            subtitle = "Мужчины и женщины",
+            count = championship.size,
+            modifier = Modifier.weight(1f),
+            onClick = { championship.firstOrNull()?.let { onOpenDivision(it.id) } ?: onOpenDivisions() },
+        )
+    }
+}
+
+@Composable
+private fun CompetitionCard(
+    title: String,
+    subtitle: String,
+    count: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = modifier,
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Icon(Icons.Filled.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(8.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "$count дивизионов",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
