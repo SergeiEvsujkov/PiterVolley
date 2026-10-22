@@ -23,6 +23,7 @@ object Repo {
     private lateinit var gamesByDivision: Map<Int, List<Game>>
     private lateinit var gamesByTeam: Map<String, List<Game>>
     private val standingsCache = HashMap<Int, List<StandingRow>>()
+    private val combinedCache = HashMap<Int, List<ClubRow>>()
 
     val isLoaded: Boolean get() = dataset != null
     val data: Dataset get() = dataset ?: error("Repo not loaded")
@@ -59,6 +60,7 @@ object Repo {
             }
         }
         standingsCache.clear()
+        combinedCache.clear()
         revision.value = revision.value + 1
     }
 
@@ -177,6 +179,9 @@ object Repo {
     // ---------------------------------------------------------------- standings
 
     fun standings(divisionId: Int): List<StandingRow> = standingsCache.getOrPut(divisionId) {
+        val division = divisionById[divisionId]
+        val firstTeam = division?.teamLabel == 1
+        val championship = isChampionship(division)
         val rows = LinkedHashMap<String, StandingRow>()
         for (team in teamsOf(divisionId)) {
             rows[team.id] = StandingRow(team)
@@ -200,31 +205,47 @@ object Repo {
                 away.ballsFor += set[1]
                 away.ballsAgainst += set[0]
             }
-            when {
-                hs > asets -> {
-                    home.wins++
-                    away.losses++
-                    if (hs == 3 && asets == 2) {
-                        home.points += 2
-                        away.points += 1
-                    } else {
-                        home.points += 3
-                    }
-                }
-                asets > hs -> {
-                    away.wins++
-                    home.losses++
-                    if (asets == 3 && hs == 2) {
-                        away.points += 2
-                        home.points += 1
-                    } else {
-                        away.points += 3
-                    }
-                }
+            if (championship) {
+                awardChampionshipPoints(home, hs, asets, firstTeam)
+                awardChampionshipPoints(away, asets, hs, firstTeam)
+            } else {
+                awardPremierPoints(home, hs, asets)
+                awardPremierPoints(away, asets, hs)
             }
         }
         val ranked = rows.values.sortedWith(RANK_ORDER)
         orderWithHeadToHead(ranked, gamesOf(divisionId))
+    }
+
+    fun isChampionship(division: Division?): Boolean =
+        division?.competition?.contains("Чемпионат", ignoreCase = true) == true
+
+    /** Очки Первенства: 3 за 3:0–3:1, 2 за 3:2, 1 за поражение 2:3. */
+    private fun awardPremierPoints(row: StandingRow, won: Int, lost: Int) {
+        when {
+            won > lost -> {
+                row.wins++
+                row.points += if (won == 3 && lost == 2) 2 else 3
+            }
+            lost > won -> {
+                row.losses++
+                if (won == 2 && lost == 3) row.points += 1
+            }
+        }
+    }
+
+    /**
+     * Очки Чемпионата (п. 6.3.1): у первой команды 6/4/2/0, у второй — 3/2/1/0.
+     */
+    private fun awardChampionshipPoints(row: StandingRow, won: Int, lost: Int, firstTeam: Boolean) {
+        val win = won > lost
+        if (win) row.wins++ else if (lost > won) row.losses++
+        row.points += when {
+            win && won == 3 && lost == 2 -> if (firstTeam) 4 else 2
+            win -> if (firstTeam) 6 else 3
+            !win && won == 2 && lost == 3 -> if (firstTeam) 2 else 1
+            else -> 0
+        }
     }
 
     /**
@@ -287,6 +308,127 @@ object Repo {
         )
     }
 
+    private fun clubKey(name: String): String =
+        name.lowercase().replace('ё', 'е').replace(Regex("\\s+"), " ").trim()
+
+    /**
+     * Общая таблица Чемпионата (п. 6.3): первая и вторая команды коллектива
+     * складываются в одну строку.
+     */
+    fun combinedStandings(divisionId: Int): List<ClubRow> = combinedCache.getOrPut(divisionId) {
+        val division = divisionById[divisionId] ?: return@getOrPut emptyList()
+        val pairIds = data.divisions
+            .filter { it.competition == division.competition && it.gender == division.gender && it.birthYear == null }
+            .map { it.id }
+            .toSet()
+        if (pairIds.isEmpty()) return@getOrPut emptyList()
+
+        val clubs = LinkedHashMap<String, ClubRow>()
+        for (team in data.teams.filter { it.divisionId in pairIds }) {
+            val row = clubs.getOrPut(clubKey(team.name)) { ClubRow(team.name) }
+            row.teams += team
+        }
+
+        val games = data.games.filter { it.divisionId in pairIds && it.hasResult && it.sets.isNotEmpty() }
+        for (g in games) {
+            val home = clubs[clubKey(teamById[g.homeId]?.name ?: g.home)] ?: continue
+            val away = clubs[clubKey(teamById[g.awayId]?.name ?: g.away)] ?: continue
+            val firstTeam = divisionById[g.divisionId]?.teamLabel == 1
+            val hs = g.homeSets
+            val asets = g.awaySets
+
+            home.played++
+            away.played++
+            home.setsFor += hs
+            home.setsAgainst += asets
+            away.setsFor += asets
+            away.setsAgainst += hs
+            for (set in g.sets) {
+                if (set.size < 2) continue
+                home.ballsFor += set[0]
+                home.ballsAgainst += set[1]
+                away.ballsFor += set[1]
+                away.ballsAgainst += set[0]
+            }
+            addClubPoints(home, hs, asets, firstTeam)
+            addClubPoints(away, asets, hs, firstTeam)
+        }
+
+        val ranked = clubs.values.sortedWith(CLUB_ORDER)
+        orderClubsWithHeadToHead(ranked, games)
+    }
+
+    private fun addClubPoints(row: ClubRow, won: Int, lost: Int, firstTeam: Boolean) {
+        val win = won > lost
+        if (win) row.wins++ else if (lost > won) row.losses++
+        row.points += when {
+            win && won == 3 && lost == 2 -> if (firstTeam) 4 else 2
+            win -> if (firstTeam) 6 else 3
+            !win && won == 2 && lost == 3 -> if (firstTeam) 2 else 1
+            else -> 0
+        }
+    }
+
+    private val CLUB_ORDER = Comparator<ClubRow> { a, b ->
+        var c = b.wins.compareTo(a.wins)
+        if (c != 0) return@Comparator c
+        c = b.points.compareTo(a.points)
+        if (c != 0) return@Comparator c
+        c = ratioCompare(a.setsFor, a.setsAgainst, b.setsFor, b.setsAgainst)
+        if (c != 0) return@Comparator -c
+        c = ratioCompare(a.ballsFor, a.ballsAgainst, b.ballsFor, b.ballsAgainst)
+        if (c != 0) return@Comparator -c
+        0
+    }
+
+    private fun orderClubsWithHeadToHead(ranked: List<ClubRow>, games: List<Game>): List<ClubRow> {
+        val result = ArrayList<ClubRow>(ranked.size)
+        var i = 0
+        while (i < ranked.size) {
+            var j = i + 1
+            while (j < ranked.size && ranked[i].wins == ranked[j].wins && ranked[i].points == ranked[j].points) j++
+            val group = ranked.subList(i, j)
+            result += if (group.size == 1) group else sortClubsByHeadToHead(group, games)
+            i = j
+        }
+        return result
+    }
+
+    /** Личные встречи коллективов: сначала победы, затем очки в матчах между ними. */
+    private fun sortClubsByHeadToHead(group: List<ClubRow>, games: List<Game>): List<ClubRow> {
+        val names = group.map { it.name }.toSet()
+        val hWins = HashMap<String, Int>()
+        val hPoints = HashMap<String, Int>()
+        for (g in games) {
+            val homeKey = clubKey(teamById[g.homeId]?.name ?: g.home)
+            val awayKey = clubKey(teamById[g.awayId]?.name ?: g.away)
+            if (homeKey !in names || awayKey !in names) continue
+            val firstTeam = divisionById[g.divisionId]?.teamLabel == 1
+            val hs = g.homeSets
+            val asets = g.awaySets
+            val homeWon = hs > asets
+            val winnerKey = if (homeWon) homeKey else awayKey
+            val loserKey = if (homeWon) awayKey else homeKey
+            val winnerSets = if (homeWon) hs else asets
+            val loserSets = if (homeWon) asets else hs
+            hWins[winnerKey] = (hWins[winnerKey] ?: 0) + 1
+            val winnerPoints = when {
+                winnerSets == 3 && loserSets == 2 -> if (firstTeam) 4 else 2
+                else -> if (firstTeam) 6 else 3
+            }
+            val loserPoints = if (winnerSets == 3 && loserSets == 2) (if (firstTeam) 2 else 1) else 0
+            hPoints[winnerKey] = (hPoints[winnerKey] ?: 0) + winnerPoints
+            hPoints[loserKey] = (hPoints[loserKey] ?: 0) + loserPoints
+        }
+        return group.sortedWith(
+            compareByDescending<ClubRow> { hWins[it.name] ?: 0 }
+                .thenByDescending { hPoints[it.name] ?: 0 }
+                .thenByDescending { it.setsRatio }
+                .thenByDescending { it.ballsRatio }
+                .thenBy { it.name },
+        )
+    }
+
     /** Сравнение дробей без потери точности; x/0 при x > 0 — бесконечность, 0/0 — ноль. */
     private fun ratioCompare(aNum: Int, aDen: Int, bNum: Int, bDen: Int): Int {
         // 0:0 (игр не было) считаем как 0, а не как «ничья» с любым отношением
@@ -325,9 +467,26 @@ data class StandingRow(val team: Team) {
     val ballsText: String get() = "$ballsFor:$ballsAgainst"
 }
 
+/** Коллектив Чемпионата: первая и вторая команды в одной строке общей таблицы. */
+data class ClubRow(val name: String) {
+    val teams = mutableListOf<Team>()
+    var played: Int = 0
+    var wins: Int = 0
+    var losses: Int = 0
+    var points: Int = 0
+    var setsFor: Int = 0
+    var setsAgainst: Int = 0
+    var ballsFor: Int = 0
+    var ballsAgainst: Int = 0
+
+    val setsRatio: Double get() = if (setsAgainst == 0) setsFor.toDouble() else setsFor.toDouble() / setsAgainst
+    val ballsRatio: Double get() = if (ballsAgainst == 0) ballsFor.toDouble() else ballsFor.toDouble() / ballsAgainst
+    val setsText: String get() = "$setsFor:$setsAgainst"
+    val ballsText: String get() = "$ballsFor:$ballsAgainst"
+}
+
 /** Один человек: может быть заявлен за несколько команд разных дивизионов. */
-data class Person(
-    val key: String,
+data class Person(    val key: String,
     val name: String,
     val birthYear: Int?,
     val players: List<Player>,
