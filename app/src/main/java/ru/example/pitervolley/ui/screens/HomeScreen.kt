@@ -227,7 +227,7 @@ fun HomeScreen(
                     }
                 }
 
-                item { SectionTitle("По годам рождения") }
+                item { SectionTitle("Дивизионы") }
                 item {
                     val boys = remember(revision) {
                         ds.divisions.filter { it.gender == "boys" && it.birthYear != null }
@@ -237,10 +237,20 @@ fun HomeScreen(
                         ds.divisions.filter { it.gender == "girls" && it.birthYear != null }
                             .sortedBy { it.birthYear }
                     }
+                    val men = remember(revision) {
+                        ds.divisions.filter { it.gender == "men" }.sortedBy { it.teamLabel ?: 0 }
+                    }
+                    val women = remember(revision) {
+                        ds.divisions.filter { it.gender == "women" }.sortedBy { it.teamLabel ?: 0 }
+                    }
                     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                        YearRow("Юноши", boys, onOpenDivision)
+                        YearRow("Юноши", boys, { it.birthYear?.toString().orEmpty() }, onOpenDivision)
                         Spacer(Modifier.height(8.dp))
-                        YearRow("Девушки", girls, onOpenDivision)
+                        YearRow("Девушки", girls, { it.birthYear?.toString().orEmpty() }, onOpenDivision)
+                        Spacer(Modifier.height(8.dp))
+                        YearRow("Мужчины", men, { it.teamLabel?.let { n -> "$n-я" }.orEmpty() }, onOpenDivision)
+                        Spacer(Modifier.height(8.dp))
+                        YearRow("Женщины", women, { it.teamLabel?.let { n -> "$n-я" }.orEmpty() }, onOpenDivision)
                     }
                 }
                 item { Spacer(Modifier.height(24.dp)) }
@@ -312,7 +322,12 @@ private fun CompetitionCard(
 }
 
 @Composable
-private fun YearRow(label: String, divisions: List<Division>, onOpenDivision: (Int) -> Unit) {
+private fun YearRow(
+    label: String,
+    divisions: List<Division>,
+    chipText: (Division) -> String,
+    onOpenDivision: (Int) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -339,7 +354,7 @@ private fun YearRow(label: String, divisions: List<Division>, onOpenDivision: (I
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         ) {
                             Text(
-                                text = division.birthYear?.toString().orEmpty(),
+                                text = chipText(division),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
