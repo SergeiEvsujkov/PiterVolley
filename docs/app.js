@@ -189,6 +189,26 @@ function genderColor(division) {
   return GENDER_COLORS[division ? division.gender : ''] || '#1b4f9c';
 }
 
+function miniLogo(team) {
+  if (team && team.logo) {
+    const img = el('img', 'logo mini');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => img.remove());
+    img.src = team.logo;
+    return img;
+  }
+  return el('span', 'logo mini');
+}
+
+function teamNameCell(team, label) {
+  const cell = el('div', 'namecell');
+  cell.append(miniLogo(team));
+  cell.append(el('span', 'ellipsis', label));
+  return cell;
+}
+
 function chevron() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -630,7 +650,8 @@ function screenDivision(divisionId, tab) {
     rows.forEach((row, index) => {
       const tr = el('tr');
       tr.append(el('td', null, String(index + 1)));
-      const name = el('td', 'name', row.team.name);
+      const name = el('td', 'name');
+      name.append(teamNameCell(row.team, row.team.name));
       name.addEventListener('click', () => { location.hash = `#/team/${row.team.id}`; });
       tr.append(name);
       tr.append(el('td', null, String(row.played)));
@@ -655,7 +676,9 @@ function screenDivision(divisionId, tab) {
     rows.forEach((row, index) => {
       const tr = el('tr');
       tr.append(el('td', null, String(index + 1)));
-      tr.append(el('td', 'name', row.name));
+      const clubCell = el('td', 'name');
+      clubCell.append(teamNameCell(row.teams[0], row.name));
+      tr.append(clubCell);
       tr.append(el('td', null, String(row.played)));
       tr.append(el('td', null, String(row.wins)));
       tr.append(el('td', null, String(row.losses)));
