@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter
 object SheetSlots {
 
     private const val STEP_MINUTES = 75L
+    private const val CHAMPIONSHIP_STEP_MINUTES = 90L
     private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm")
 
     fun parse(csv: String): List<Slot> {
@@ -46,13 +47,16 @@ object SheetSlots {
                 .mapNotNull { it.trim().toIntOrNull() }
                 .filter { it in 1990..2030 }
             val comment = row.getOrElse(13) { "" }.trim()
+            // муж/жен — Чемпионат: игры 1-й и 2-й команд с шагом 1:30
+            val championship = isChampionshipGroup(group) || (ages.isEmpty() && games > 1)
+            val step = if (championship) CHAMPIONSHIP_STEP_MINUTES else STEP_MINUTES
             val labels = championshipOrder(games, comment)
 
             for (i in 0 until games) {
                 slots += Slot(
                     num = number.toDoubleOrNull()?.toInt(),
                     date = date,
-                    time = if (baseTime == null) "" else baseTime.plusMinutes(STEP_MINUTES * i).format(TIME),
+                    time = if (baseTime == null) "" else baseTime.plusMinutes(step * i).format(TIME),
                     group = group,
                     home = home,
                     away = away,
@@ -67,6 +71,11 @@ object SheetSlots {
             }
         }
         return slots
+    }
+
+    private fun isChampionshipGroup(group: String): Boolean {
+        val g = group.trim().lowercase()
+        return g.startsWith("муж") || g.startsWith("жен")
     }
 
     /** «2 команда играет первой» меняет порядок игр в строке Чемпионата. */

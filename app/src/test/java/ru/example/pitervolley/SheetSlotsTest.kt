@@ -66,7 +66,20 @@ class SheetSlotsTest {
         assertEquals(2, slots[0].label)
         assertEquals("19:00", slots[0].time)
         assertEquals(1, slots[1].label)
-        assertEquals("20:15", slots[1].time)
+        assertEquals("20:30", slots[1].time)
+    }
+
+    @Test
+    fun `championship step is ninety minutes and first team plays first by default`() {
+        val csv = header + "\n" +
+            "402,24.10.2026,сб,18:00,жен,Клуб,-,Соперник,Зал,2,Судья,Судья,,"
+        val slots = SheetSlots.parse(csv)
+
+        assertEquals(2, slots.size)
+        assertEquals(1, slots[0].label)
+        assertEquals("18:00", slots[0].time)
+        assertEquals(2, slots[1].label)
+        assertEquals("19:30", slots[1].time)
     }
 
     @Test

@@ -243,12 +243,15 @@ def parse_sheet(xls_bytes):
         ages = [int(a) for a in re.split(r"[.,/]", str(row[12] or "")) if a.strip().isdigit()]
         ages = [a for a in ages if 1990 <= a <= 2030]
         comment = str(row[13] or "").strip()
+        group = str(row[4] or "").strip()
+        championship = group.lower().startswith(("муж", "жен")) or (not ages and games > 1)
+        step = 90 if championship else 75
         labels = list(range(2, max(2, games) + 1)) + [1] if "2 команд" in comment.lower() else list(range(1, games + 1))
         for i in range(games):
             slots.append({
                 "num": int(num) if isinstance(num, (int, float)) else None,
                 "date": date or "",
-                "time": _add_minutes(base, STEP_MINUTES * i) if base else "",
+                "time": _add_minutes(base, step * i) if base else "",
                 "group": str(row[4] or "").strip(),
                 "home": str(row[5] or "").strip(),
                 "away": str(row[7] or "").strip(),
