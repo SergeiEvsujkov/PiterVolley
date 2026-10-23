@@ -1176,9 +1176,13 @@ function screenGame(divisionId, gameId) {
 
   const teams = el('div', 'card');
   const line = el('div', 'scoreline');
-  line.append(el('div', 'grow', game.home));
+  const home = el('div', 'grow teamlink', game.home);
+  home.addEventListener('click', () => { location.hash = `#/team/${game.homeId}`; });
+  const away = el('div', 'grow right teamlink', game.away);
+  away.addEventListener('click', () => { location.hash = `#/team/${game.awayId}`; });
+  line.append(home);
   line.append(el('div', 'score', game.score || '—'));
-  line.append(el('div', 'grow right', game.away));
+  line.append(away);
   teams.append(line);
   wrap.append(teams);
 
@@ -1730,7 +1734,11 @@ function render() {
   } else if (route === 'game') {
     const game = S.data.games.find(g => String(g.id) === String(parts[2]));
     content = screenGame(parts[1], parts[2]);
-    if (game) title = `${game.home} — ${game.away}`;
+    if (game) {
+      title = `${game.home} — ${game.away}`;
+      const division = S.divisions.get(game.divisionId);
+      if (division) subtitle = `${division.competition} · ${divisionSubtitle(division)}`;
+    }
     back = true;
   } else if (route === 'calendar') {
     if (parts[1] === 'month') S.calMode = 'month';
