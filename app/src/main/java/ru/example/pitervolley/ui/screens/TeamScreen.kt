@@ -128,7 +128,30 @@ fun TeamScreen(
                 )
             }
             if (players.isEmpty()) {
-                item { EmptyState("Состав пока не опубликован") }
+                item {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(
+                                "Заявка ещё не опубликована",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Федерация заполняет составы постепенно — они появляются на pitervolley.ru. " +
+                                    "Обновите данные кнопкой «Обновить» на главной позже, и состав подтянется.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
             items(players.chunked(2), key = { it.joinToString { p -> p.id } }) { pair ->
                 Row(

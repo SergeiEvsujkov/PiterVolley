@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +70,7 @@ private val MONTHS = listOf(
 @Composable
 fun CalendarScreen(onOpenGame: (Game) -> Unit) {
     var gender by rememberSaveable { mutableStateOf("all") }
+    var divisionId by rememberSaveable { mutableStateOf(0) }
     var monthMode by rememberSaveable { mutableStateOf(false) }
     var monthIso by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
     var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
@@ -81,13 +83,25 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
             Repo.teamsOfPerson(Repo.resolvePersonKey(key)).map { it.id }
         }
     }
-    val games = remember(gender, trackedTeamIds) {
+    val hasFavorites = favoriteTeams.isNotEmpty() || favoritePersons.isNotEmpty()
+
+    val genderDivisions = remember(gender) {
+        when (gender) {
+            "boys", "girls", "men", "women" -> Repo.data.divisions
+                .filter { it.gender == gender }
+                .sortedBy { it.birthYear ?: (it.teamLabel ?: 0) }
+            else -> emptyList()
+        }
+    }
+
+    val games = remember(gender, divisionId, trackedTeamIds) {
         Repo.data.games.filter { game ->
-            when (gender) {
+            val byGender = when (gender) {
                 "all" -> true
                 "fav" -> game.homeId in trackedTeamIds || game.awayId in trackedTeamIds
                 else -> divisionGender[game.divisionId] == gender
             }
+            byGender && (divisionId == 0 || game.divisionId == divisionId)
         }
     }
     val byDate = remember(games) { games.filter { it.date != null }.groupBy { it.date!! } }
@@ -115,12 +129,48 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             GenderChips(
                 selected = gender,
-                onSelect = { gender = it },
+                onSelect = { gender = it; divisionId = 0 },
                 includeFavorites = true,
-                modifier = Modifier.padding(vertical = 6.dp),
+                modifier = Modifier.padding(top = 6.dp),
             )
 
-            androidx.compose.runtime.key(monthMode) {
+            if (genderDivisions.isNotEmpty()) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                ) {
+                    item {
+                        FilterChip(
+                            selected = divisionId == 0,
+                            onClick = { divisionId = 0 },
+                            label = { Text("Все", style = MaterialTheme.typography.labelMedium) },
+                        )
+                    }
+                    items(genderDivisions.size) { index ->
+                        val division = genderDivisions[index]
+                        FilterChip(
+                            selected = divisionId == division.id,
+                            onClick = { divisionId = division.id },
+                            label = {
+                                Text(
+                                    text = division.birthYear?.toString()
+                                        ?: division.teamLabel?.let { "$it-я" }.orEmpty(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (gender == "fav" && !hasFavorites) {
+                EmptyState(
+                    "Здесь появятся игры ваших команд и игроков.\n" +
+                        "Откройте команду или игрока и нажмите ☆ — они добавятся в избранное.",
+                )
+            } else {
+                androidx.compose.runtime.key(monthMode) {
                 if (monthMode) {
                     MonthView(
                         month = month,
@@ -141,6 +191,7 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
                 } else {
                     ListView(byDate = byDate, onOpenGame = onOpenGame)
                 }
+                }
             }
         }
     }
@@ -150,7 +201,7 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
 private fun ListView(byDate: Map<String, List<Game>>, onOpenGame: (Game) -> Unit) {
     val dates = remember(byDate) { byDate.keys.sorted() }
     if (dates.isEmpty()) {
-        EmptyState("Игр нет")
+        EmptyState("По выбранным фильтрам игр нет")
         return
     }
     val todayIso = today().toString()
