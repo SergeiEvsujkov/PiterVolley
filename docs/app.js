@@ -679,9 +679,9 @@ function screenHome() {
   const updated = el('div', 'card tight');
   const updatedRow = el('div', 'row');
   const updatedText = el('div', 'grow');
-  updatedText.append(el('div', 'small muted', 'Последнее обновление'));
-  updatedText.append(el('div', 'strong', generatedText()));
-  updatedText.append(el('div', 'small muted', sheetUsed() ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
+  updatedText.append(el('div', 'small muted', 'Данные на'));
+  updatedText.append(el('div', 'strong', dataFreshnessText()));
+  updatedText.append(el('div', 'small muted', `${checkedText()} · ${sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru'}`));
   updatedRow.append(updatedText);
   const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
   refresh.addEventListener('click', () => refreshAll(refresh));
@@ -1483,15 +1483,22 @@ function screenSettings() {
 
   wrap.append(el('h2', 'section', 'Данные'));
   const dataGroup = el('div', 'group');
-  const updated = el('div', 'row pad');
-  const updatedText = el('div', 'grow');
-  updatedText.append(el('div', 'strong', 'Последнее обновление'));
-  updatedText.append(el('div', 'small muted', generatedText()));
-  updated.append(updatedText);
+  const freshness = el('div', 'row pad');
+  const freshnessText = el('div', 'grow');
+  freshnessText.append(el('div', 'strong', 'Данные на'));
+  freshnessText.append(el('div', 'small muted', dataFreshnessText()));
+  freshness.append(freshnessText);
+  dataGroup.append(freshness);
+
+  const checked = el('div', 'row pad');
+  const checkedRow = el('div', 'grow');
+  checkedRow.append(el('div', 'strong', 'Последняя проверка'));
+  checkedRow.append(el('div', 'small muted', checkedText()));
+  checked.append(checkedRow);
   const refresh = el('button', 'btn btn-accent', 'Обновить');
   refresh.addEventListener('click', () => refreshAll(refresh));
-  updated.append(refresh);
-  dataGroup.append(updated);
+  checked.append(refresh);
+  dataGroup.append(checked);
 
   const source = el('div', 'row pad');
   const sourceText = el('div', 'grow');
@@ -1580,6 +1587,38 @@ function screenSettings() {
   wrap.append(about);
 
   return wrap;
+}
+
+function formatMoment(source) {
+  if (!source) return null;
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} в ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function relativeAge(source) {
+  if (!source) return '';
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return '';
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return 'только что';
+  if (minutes < 60) return `${minutes} ${plural(minutes, 'минуту', 'минуты', 'минут')} назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${plural(hours, 'час', 'часа', 'часов')} назад`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${plural(days, 'день', 'дня', 'дней')} назад`;
+}
+
+function dataFreshnessText() {
+  const stamp = formatMoment(S.data.generatedAt);
+  if (!stamp) return 'данные ещё не загружены';
+  return `${stamp} · ${relativeAge(S.data.generatedAt)}`;
+}
+
+function checkedText() {
+  const stamp = formatMoment(localStorage.getItem('vp.lastSync'));
+  return stamp ? `проверено ${stamp}` : 'ещё не проверяли';
 }
 
 function generatedText() {
