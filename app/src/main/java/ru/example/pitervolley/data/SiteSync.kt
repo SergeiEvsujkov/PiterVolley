@@ -55,6 +55,14 @@ object SiteSync {
     }
 
     /** "23.10.2026 в 01:53" или null, если данные ещё ни разу не обновлялись. */
+    /** «проверено в 22:18» — как в веб-версии. */
+    fun lastSyncTimeText(context: Context): String? {
+        val ts = lastSync(context)
+        if (ts == 0L) return null
+        val fmt = SimpleDateFormat("HH:mm", java.util.Locale.forLanguageTag("ru-RU"))
+        return "проверено в " + fmt.format(Date(ts))
+    }
+
     fun lastSyncDateText(context: Context): String? {
         val ts = lastSync(context)
         if (ts == 0L) return null
@@ -177,6 +185,27 @@ object SiteSync {
             site -> Source.SITE_ONLY
             sheet -> Source.SHEET_ONLY
             else -> Source.NONE
+        }
+    }
+
+    /** Короткая подпись источника для карточки обновления. */
+    fun lastSourceShort(context: Context): String? {
+        val sources = if (Repo.isLoaded) Repo.data.sources else null
+        if (sources != null) {
+            return when {
+                sources.site && sources.sheet -> "сайт + таблица"
+                sources.site -> "только сайт"
+                sources.sheet -> "только таблица"
+                else -> "нет источников"
+            }
+        }
+        return when (lastSource(context)) {
+            Source.GITHUB -> "GitHub"
+            Source.BOTH -> "сайт + таблица"
+            Source.SITE_ONLY -> "только сайт"
+            Source.SHEET_ONLY -> "только таблица"
+            Source.FAILED -> "обновление не удалось"
+            Source.NONE -> null
         }
     }
 

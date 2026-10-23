@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import ru.example.pitervolley.data.PersonOverrides
 import ru.example.pitervolley.data.ReminderSettings
 import ru.example.pitervolley.data.Repo
+import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.ReminderWorker
 import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
@@ -154,6 +155,14 @@ fun SettingsScreen(onBack: () -> Unit) {
                     .padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
                 Column(Modifier.padding(16.dp)) {
+                    Text("Источник", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        SiteSync.lastSourceText(context) ?: "нет данных",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
                     Text("Игроки", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(

@@ -405,13 +405,13 @@ fun GenderChips(
  */
 @Composable
 fun UpdateBar(
-    subtitle: String,
+    dataStamp: String?,
+    ageText: String?,
+    checkedText: String,
     refreshing: Boolean,
     isError: Boolean,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
-    sourceText: String? = null,
-    sourceIsError: Boolean = false,
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier
@@ -421,7 +421,7 @@ fun UpdateBar(
         color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
-            Modifier.padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+            Modifier.padding(start = 12.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -447,29 +447,32 @@ fun UpdateBar(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = when {
-                        isError -> "Не удалось обновить"
-                        refreshing -> "Обновляем данные…"
-                        else -> "Последнее обновление"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (sourceText != null) {
+                if (isError) {
                     Text(
-                        text = sourceText,
+                        text = "Не удалось обновить",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (sourceIsError) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
+                if (dataStamp != null) {
+                    Text(
+                        text = dataStamp,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (ageText != null) {
+                    Text(
+                        text = ageText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    text = checkedText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             androidx.compose.material3.FilledTonalButton(
                 onClick = onRefresh,

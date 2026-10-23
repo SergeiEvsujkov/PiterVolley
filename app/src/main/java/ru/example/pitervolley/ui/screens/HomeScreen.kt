@@ -168,12 +168,12 @@ fun HomeScreen(
 
                 item {
                     UpdateBar(
-                        subtitle = SiteSync.lastSyncDateText(context) ?: "ещё не обновляли",
+                        dataStamp = ru.example.pitervolley.data.TimeText.dataStamp(ds.generatedAt),
+                        ageText = ru.example.pitervolley.data.TimeText.ageShort(ds.generatedAt),
+                        checkedText = SiteSync.lastSyncTimeText(context) ?: "ещё не проверяли",
                         refreshing = refreshing,
                         isError = syncMessage != null,
                         onRefresh = doRefresh,
-                        sourceText = sourceText,
-                        sourceIsError = sourceError,
                     )
                 }
 
