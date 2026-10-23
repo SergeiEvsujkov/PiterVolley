@@ -81,13 +81,20 @@ def norm_name(s):
 
 
 def norm_venue(s):
-    s = re.sub(r"\s+", " ", clean(s))
+    s = re.sub(r"\s+", " ", clean(s)).strip()
     if s.strip(".…? ") == "" or set(s.strip()) <= set("?"):
         return ""
-    s = re.sub(r"\s*,\s*", ", ", s)
-    s = re.sub(r"д\.\s*(\d)", r"д.\1", s)
-    s = re.sub(r"пр\.\s*", "пр. ", s)
-    return s
+    s = re.sub(r"(?i)(^|\s)просп(ект)?\.?\s*", r"\1пр. ", s)
+    s = re.sub(r"(?i)улица", "ул.", s)
+    s = re.sub(r"(?i)(^|\s)ул\.?\s*", r"\1ул. ", s)
+    s = re.sub(r"(?i)(^|\s)дом\.?\s*(\d)", r"\1д.\2", s)
+    s = re.sub(r"(?i)(^|\s)д\.?\s*(\d)", r"\1д.\2", s)
+    s = re.sub(r"(?i)(?<![А-Яа-яA-Za-z])В\.?\s*О\.?(?![А-Яа-яA-Za-z])", "В.О.", s)
+    s = re.sub(r"(?i)\s+д\.", ", д.", s)
+    s = re.sub(r"(\s*,\s*)+", ", ", s)
+    s = re.sub(r"(д\.\d+)\s+([А-ЯA-Z])(?![а-яa-z])", r"\1\2", s)
+    s = re.sub(r"(д\.)\s+(\d)", r"\1\2", s)
+    return s.strip().strip(",")
 
 
 def iso_date(s):
