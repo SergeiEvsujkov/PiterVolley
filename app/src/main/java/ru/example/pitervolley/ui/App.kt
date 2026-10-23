@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,10 +71,12 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TABS.forEach { tab ->
                         val selected = route == tab.route
                         TextButton(
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             onClick = {
                                 if (!selected) {
                                     // Без saveState/restoreState: восстановление стека
@@ -84,7 +88,11 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
                                 }
                             },
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                modifier = Modifier.height(46.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = tab.label,
