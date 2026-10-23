@@ -56,7 +56,7 @@ private val TABS = listOf(
 )
 
 @Composable
-fun PiterVolleyApp(startRoute: String? = null, startQuery: String? = null) {
+fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route

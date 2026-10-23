@@ -50,7 +50,7 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun PiterVolleyTheme(
+fun VolleyPiterTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

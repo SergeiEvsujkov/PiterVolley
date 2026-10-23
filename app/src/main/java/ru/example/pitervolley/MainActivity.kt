@@ -37,8 +37,8 @@ import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
 import ru.example.pitervolley.notify.ReminderWorker
-import ru.example.pitervolley.ui.PiterVolleyApp
-import ru.example.pitervolley.ui.theme.PiterVolleyTheme
+import ru.example.pitervolley.ui.VolleyPiterApp
+import ru.example.pitervolley.ui.theme.VolleyPiterTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val app = applicationContext
         setContent {
-            PiterVolleyTheme {
+            VolleyPiterTheme {
                 var ready by remember { mutableStateOf(Repo.isLoaded) }
                 var error by remember { mutableStateOf<String?>(null) }
                 val permissionLauncher = rememberLauncherForActivityResult(
@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when {
-                    ready -> PiterVolleyApp(
+                    ready -> VolleyPiterApp(
                         startRoute = intent.getStringExtra("route"),
                         startQuery = intent.getStringExtra("q"),
                     )

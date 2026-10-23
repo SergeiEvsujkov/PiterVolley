@@ -117,7 +117,7 @@ fun HomeScreen(
     val venuesCount = remember(revision) { ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size }
 
     ScreenScaffold(
-        title = "PiterVolley",
+        title = "VolleyPiter",
         subtitle = "Волейбол СПб · сезон ${ds.season}",
         actions = {
             IconButton(onClick = onOpenSearch) {

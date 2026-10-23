@@ -10,7 +10,7 @@ import coil.memory.MemoryCache
  * Общий загрузчик картинок: дисковый кеш на 100 МБ и плавное появление,
  * чтобы фото игроков не перекачивались при каждой прокрутке.
  */
-class PiterVolleyApp : Application(), ImageLoaderFactory {
+class VolleyPiterApplication : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .crossfade(true)

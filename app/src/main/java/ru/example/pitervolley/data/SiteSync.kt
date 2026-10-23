@@ -29,7 +29,7 @@ object SiteSync {
     private const val KEY_SITE_OK = "last_site_ok"
     private const val KEY_SHEET_OK = "last_sheet_ok"
     private const val KEY_FAILED = "last_failed"
-    private const val UA = "PiterVolleyApp/0.1 (+android)"
+    private const val UA = "VolleyPiter/0.1 (+android)"
 
     const val MIN_INTERVAL_MS = 30 * 60 * 1000L
     const val DIVISIONS = 18

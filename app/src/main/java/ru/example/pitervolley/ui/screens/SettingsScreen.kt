@@ -231,7 +231,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "PiterVolley — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
+                        "VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))
