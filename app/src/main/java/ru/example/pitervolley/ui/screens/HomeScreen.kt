@@ -78,6 +78,10 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
     var syncMessage by remember { mutableStateOf<String?>(null) }
+    var sourceText by remember { mutableStateOf(SiteSync.lastSourceText(context)) }
+    var sourceError by remember {
+        mutableStateOf(SiteSync.lastSource(context) == SiteSync.Source.FAILED)
+    }
 
     val doRefresh: () -> Unit = {
         scope.launch {
@@ -86,6 +90,8 @@ fun HomeScreen(
             val result = SiteSync.refresh(context, force = true)
             refreshing = false
             syncMessage = if (result.isSuccess) null else "ошибка"
+            sourceText = SiteSync.lastSourceText(context)
+            sourceError = SiteSync.lastSource(context) == SiteSync.Source.FAILED
         }
     }
 
@@ -154,6 +160,8 @@ fun HomeScreen(
                         refreshing = refreshing,
                         isError = syncMessage != null,
                         onRefresh = doRefresh,
+                        sourceText = sourceText,
+                        sourceIsError = sourceError,
                     )
                 }
 

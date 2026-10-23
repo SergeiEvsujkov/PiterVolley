@@ -26,6 +26,9 @@ object SiteSync {
 
     private const val PREFS = "sync"
     private const val KEY_LAST = "last_sync"
+    private const val KEY_SITE_OK = "last_site_ok"
+    private const val KEY_SHEET_OK = "last_sheet_ok"
+    private const val KEY_FAILED = "last_failed"
     private const val UA = "PiterVolleyApp/0.1 (+android)"
 
     const val MIN_INTERVAL_MS = 30 * 60 * 1000L
@@ -66,16 +69,32 @@ object SiteSync {
             val teamIds = LinkedHashMap<String, Team>()
             val games = ArrayList<Game>()
 
-            for (tid in 1..DIVISIONS) {
-                val html = get("$BASE/table?tid=$tid")
-                val parsed = parseDivision(tid, html)
-                divisions += parsed.division
-                games += parsed.games
-                for (team in parsed.teams) teamIds[team.id] = team
-                delay(120)
+            var siteOk = true
+            try {
+                for (tid in 1..DIVISIONS) {
+                    val html = get("$BASE/table?tid=$tid")
+                    val parsed = parseDivision(tid, html)
+                    divisions += parsed.division
+                    games += parsed.games
+                    for (team in parsed.teams) teamIds[team.id] = team
+                    delay(120)
+                }
+            } catch (e: Exception) {
+                // сайт недоступен: остаёмся на прежних данных, но расписание из таблицы применим
+                if (previous == null) throw e
+                siteOk = false
+                divisions.clear()
+                divisions.addAll(previous.divisions)
+                games.clear()
+                games.addAll(previous.games.map { it.copy() })
+                teamIds.clear()
+                previous.teams.forEach { teamIds[it.id] = it }
             }
 
             val slots = runCatching { SheetSlots.parse(get(sheetCsvUrl())) }.getOrElse { emptyList() }
+            val sheetOk = slots.isNotEmpty()
+            if (!siteOk && !sheetOk) throw IllegalStateException("Нет данных ни с сайта, ни из таблицы")
+
             SheetSlots.apply(games, slots, divisions.associateBy { it.id })
 
             val knownLogos = previous?.teams?.associate { it.id to it.logo }.orEmpty()
@@ -105,10 +124,44 @@ object SiteSync {
 
             Repo.apply(dataset)
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putLong(KEY_LAST, now).apply()
+                .edit()
+                .putLong(KEY_LAST, now)
+                .putBoolean(KEY_SITE_OK, siteOk)
+                .putBoolean(KEY_SHEET_OK, sheetOk)
+                .putBoolean(KEY_FAILED, false)
+                .apply()
 
             games.size
+        }.also { result ->
+            if (result.isFailure) {
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putBoolean(KEY_FAILED, true).apply()
+            }
         }
+    }
+
+    /** Откуда удалось обновить данные в последний раз. */
+    enum class Source { BOTH, SITE_ONLY, SHEET_ONLY, FAILED, NONE }
+
+    fun lastSource(context: Context): Source {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_FAILED, false)) return Source.FAILED
+        val site = prefs.getBoolean(KEY_SITE_OK, false)
+        val sheet = prefs.getBoolean(KEY_SHEET_OK, false)
+        return when {
+            site && sheet -> Source.BOTH
+            site -> Source.SITE_ONLY
+            sheet -> Source.SHEET_ONLY
+            else -> Source.NONE
+        }
+    }
+
+    fun lastSourceText(context: Context): String? = when (lastSource(context)) {
+        Source.BOTH -> "Данные: pitervolley.ru + volleyreferee.spb.ru"
+        Source.SITE_ONLY -> "Данные: только pitervolley.ru — расписание недоступно"
+        Source.SHEET_ONLY -> "Данные: только volleyreferee.spb.ru — сайт недоступен"
+        Source.FAILED -> "Данные: обновление не удалось"
+        Source.NONE -> null
     }
 
     private fun sheetCsvUrl(): String =

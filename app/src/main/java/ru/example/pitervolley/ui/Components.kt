@@ -410,6 +410,8 @@ fun UpdateBar(
     isError: Boolean,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    sourceText: String? = null,
+    sourceIsError: Boolean = false,
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier
@@ -460,6 +462,14 @@ fun UpdateBar(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
+                if (sourceText != null) {
+                    Text(
+                        text = sourceText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (sourceIsError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             androidx.compose.material3.FilledTonalButton(
                 onClick = onRefresh,
