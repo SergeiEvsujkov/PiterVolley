@@ -6,6 +6,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import ru.example.pitervolley.data.Favorites
+import ru.example.pitervolley.data.ReminderSettings
 import ru.example.pitervolley.data.Repo
 import java.time.Duration
 import java.time.LocalDateTime
@@ -18,8 +20,11 @@ import java.util.concurrent.TimeUnit
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        runCatching { Repo.load(applicationContext) }
-        GameNotifications.notifyTomorrow(applicationContext)
+        val context = applicationContext
+        Favorites.init(context)
+        ReminderSettings.init(context)
+        runCatching { Repo.load(context) }
+        GameNotifications.notifyTomorrow(context)
         return Result.success()
     }
 
@@ -27,7 +32,12 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         private const val NAME = "daily-game-reminder"
         private const val HOUR = 18
 
-        fun schedule(context: Context) {
+        /** Включает ежедневную задачу, если напоминания вообще нужны, иначе снимает её. */
+        fun sync(context: Context) {
+            if (!ReminderSettings.state.value.anyEnabled) {
+                cancel(context)
+                return
+            }
             val now = LocalDateTime.now()
             var next = now.toLocalDate().atTime(HOUR, 0)
             if (!next.isAfter(now)) next = next.plusDays(1)
@@ -42,6 +52,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
+        }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(NAME)
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import ru.example.pitervolley.R
 import ru.example.pitervolley.data.Favorites
+import ru.example.pitervolley.data.ReminderSettings
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.today
 
@@ -40,19 +41,38 @@ object GameNotifications {
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
 
-    /** Posts one digest notification for tomorrow's games, if any favourite team plays. */
+    private fun matches(
+        game: ru.example.pitervolley.data.Game,
+        settings: ReminderSettings.State,
+        favoriteTeamIds: Set<String>,
+        playerTeamIds: Set<String>,
+    ): Boolean {
+        if (settings.allGames) return true
+        if (settings.favoriteTeams && (game.homeId in favoriteTeamIds || game.awayId in favoriteTeamIds)) return true
+        if (settings.favoritePlayers && (game.homeId in playerTeamIds || game.awayId in playerTeamIds)) return true
+        if (settings.divisionsOn && game.divisionId in settings.divisionIds) return true
+        return false
+    }
+
+    /** Posts one digest notification for tomorrow's games matching the reminder settings. */
     fun notifyTomorrow(context: Context) {
         if (!canNotify(context)) return
-        val favorites = Favorites.trackedTeamIds()
-        if (favorites.isEmpty()) return
         if (!Repo.isLoaded) return
+
+        val settings = ReminderSettings.state.value
+        if (!settings.anyEnabled) return
 
         val tomorrow = today().plusDays(1).toString()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.getString(KEY_DAY, null) == tomorrow) return
 
+        val favoriteTeamIds = Favorites.teams.value
+        val playerTeamIds = Favorites.personKeys()
+            .flatMap { key -> Repo.teamsOfPerson(key).map { it.id } }
+            .toSet()
+
         val games = Repo.data.games
-            .filter { it.date == tomorrow && (it.homeId in favorites || it.awayId in favorites) }
+            .filter { it.date == tomorrow && matches(it, settings, favoriteTeamIds, playerTeamIds) }
             .sortedBy { it.time }
         if (games.isEmpty()) return
 

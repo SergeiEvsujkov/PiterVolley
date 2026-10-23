@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.PersonOverrides
+import ru.example.pitervolley.data.ReminderSettings
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
@@ -55,6 +56,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     PersonOverrides.init(app)
                     Favorites.init(app)
+                    ReminderSettings.init(app)
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         ContextCompat.checkSelfPermission(app, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -83,7 +85,7 @@ class MainActivity : ComponentActivity() {
 
                     // Данные с сайта обновляются только вручную, кнопкой «Обновить».
                     if (error == null) {
-                        ReminderWorker.schedule(app)
+                        ReminderWorker.sync(app)
                         runCatching { GameNotifications.notifyTomorrow(app) }
                     }
                 }
