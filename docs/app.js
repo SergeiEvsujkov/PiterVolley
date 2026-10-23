@@ -52,6 +52,7 @@ const gamesWord = n => `${n} ${plural(n, 'игра', 'игры', 'игр')}`;
 const teamsWord = n => `${n} ${plural(n, 'команда', 'команды', 'команд')}`;
 const playersWord = n => `${n} ${plural(n, 'игрок', 'игрока', 'игроков')}`;
 const venuesWord = n => `${n} ${plural(n, 'зал', 'зала', 'залов')}`;
+const divisionsWord = n => `${n} ${plural(n, 'дивизион', 'дивизиона', 'дивизионов')}`;
 
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
@@ -686,9 +687,9 @@ function screenHome() {
 
   const stats = el('div', 'stats');
   const statItems = [
-    [S.data.divisions.length, 'дивизионов'],
-    [S.data.teams.length, 'команд'],
-    [S.persons.size, 'игроков'],
+    [S.data.divisions.length, plural(S.data.divisions.length, 'дивизион', 'дивизиона', 'дивизионов')],
+    [S.data.teams.length, plural(S.data.teams.length, 'команда', 'команды', 'команд')],
+    [S.persons.size, plural(S.persons.size, 'игрок', 'игрока', 'игроков')],
     [played, 'сыграно'],
   ];
   for (const [value, label] of statItems) {
@@ -790,7 +791,7 @@ function screenHome() {
     const head = el('div', 'stathead');
     head.append(icon('calendar'), el('b', null, String(count)));
     box.append(head);
-    box.append(el('span', null, 'дивизионов'));
+    box.append(el('span', null, plural(count, 'дивизион', 'дивизиона', 'дивизионов')));
     box.append(el('div', 'small muted', note));
     box.addEventListener('click', () => { S.gender = gender; location.hash = '#/divisions'; render(); });
     competitions.append(box);
@@ -1580,7 +1581,7 @@ function screenSettings() {
   const counts = el('div', 'row pad');
   const countsText = el('div', 'grow');
   countsText.append(el('div', 'strong', 'В базе'));
-  countsText.append(el('div', 'small muted', `${S.data.divisions.length} дивизионов · ${teamsWord(S.data.teams.length)} · ${playersWord(S.persons.size)}`));
+  countsText.append(el('div', 'small muted', `${divisionsWord(S.data.divisions.length)} · ${teamsWord(S.data.teams.length)} · ${playersWord(S.persons.size)}`));
   counts.append(countsText);
   dataGroup.append(counts);
   wrap.append(dataGroup);
