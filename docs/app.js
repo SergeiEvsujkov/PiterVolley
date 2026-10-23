@@ -765,6 +765,7 @@ function screenHome() {
     for (const game of favFeed) wrap.append(gameCard(game));
   }
 
+  wrap.append(el('h2', 'section', 'Все игры'));
   const showPast = !!S.homePast;
   const segment = el('div', 'seghead');
   for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {

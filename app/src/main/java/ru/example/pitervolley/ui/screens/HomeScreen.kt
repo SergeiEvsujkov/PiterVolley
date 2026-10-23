@@ -284,11 +284,12 @@ fun HomeScreen(
                     }
                 }
 
+                item { SectionTitle("Все игры") }
                 item {
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .padding(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 2.dp),
+                            .padding(start = 12.dp, end = 16.dp, top = 0.dp, bottom = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(onClick = { if (showPast) showPast = false }) {
