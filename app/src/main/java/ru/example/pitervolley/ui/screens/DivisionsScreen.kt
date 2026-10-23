@@ -44,7 +44,7 @@ import ru.example.pitervolley.ui.genderColor
 
 @Composable
 fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
-    var gender by rememberSaveable { mutableStateOf("boys") }
+    var gender by rememberSaveable { mutableStateOf("all") }
     var year by rememberSaveable { mutableStateOf(0) }
 
     val favoriteTeams by Favorites.teams.collectAsState()
@@ -57,6 +57,7 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
     val divisions = remember(gender, favoriteDivisionIds) {
         when (gender) {
             "fav" -> Repo.data.divisions.filter { it.id in favoriteDivisionIds }
+            "all" -> Repo.data.divisions
             else -> Repo.data.divisions.filter { it.gender == gender }
         }
     }
@@ -65,8 +66,16 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
         else emptyList()
     }
     val shown = remember(gender, year, divisions) {
+        val genderRank = mapOf("boys" to 0, "girls" to 1, "men" to 2, "women" to 3)
         divisions.filter { year == 0 || it.birthYear == year }
-            .sortedWith(compareBy({ it.birthYear ?: 0 }, { it.teamLabel ?: 0 }))
+            .sortedWith(
+                compareBy(
+                    { if (it.competition.contains("Чемпионат", ignoreCase = true)) 1 else 0 },
+                    { genderRank[it.gender] ?: 4 },
+                    { it.birthYear ?: 0 },
+                    { it.teamLabel ?: 0 },
+                ),
+            )
     }
 
     ScreenScaffold(
@@ -77,7 +86,7 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
             GenderChips(
                 selected = gender,
                 onSelect = { gender = it; year = 0 },
-                includeAll = false,
+                includeAll = true,
                 includeFavorites = true,
                 modifier = Modifier.padding(vertical = 6.dp),
             )

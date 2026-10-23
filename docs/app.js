@@ -868,10 +868,31 @@ function screenDivisions() {
     const teams = S.data.teams.filter(t => t.divisionId === division.id);
     const games = gamesOfDivision(division.id);
     const playedCount = games.filter(g => g.score).length;
-    const card = el('div', 'card');
-    card.append(el('div', 'strong', division.competition));
-    card.append(el('div', 'muted', divisionSubtitle(division)));
-    card.append(el('div', 'small muted', `${teamsWord(teams.length)} · ${playedCount} из ${gamesWord(games.length)}`));
+    const accent = genderColor(division);
+
+    const card = el('div', 'card divcard');
+    const head = el('div', 'divhead');
+    const titles = el('div', 'grow');
+    titles.append(el('div', 'divtitle', divisionSubtitle(division)));
+    titles.append(el('div', 'divcomp', division.competition));
+    const chev = el('div', 'divchev', '›');
+    chev.style.color = accent;
+    head.append(titles, chev);
+    card.append(head);
+
+    const meta = el('div', 'divmeta');
+    meta.append(el('span', null, teamsWord(teams.length)));
+    meta.append(el('i', 'divdot', '·'));
+    meta.append(el('span', null, `${playedCount} из ${gamesWord(games.length)}`));
+    card.append(meta);
+
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    fill.style.width = games.length ? `${Math.round(playedCount / games.length * 100)}%` : '0%';
+    fill.style.background = accent;
+    bar.append(fill);
+    card.append(bar);
+
     card.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
     wrap.append(card);
   }
