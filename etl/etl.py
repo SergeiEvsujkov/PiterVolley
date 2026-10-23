@@ -290,19 +290,20 @@ def _pair(a, b):
 
 
 def _slot_key(s):
+    gender = GENDER_MAP.get(str(s.get("group") or "").strip(), None)
     if s.get("year"):
-        return (_pair(s["home"], s["away"]), "y", s["year"])
+        return (_pair(s["home"], s["away"]), gender, "y", s["year"])
     if s.get("label"):
-        return (_pair(s["home"], s["away"]), "l", s["label"])
-    return (_pair(s["home"], s["away"]), "*", None)
+        return (_pair(s["home"], s["away"]), gender, "l", s["label"])
+    return (_pair(s["home"], s["away"]), gender, "*", None)
 
 
 def _game_key(g, d):
     if d.get("birthYear"):
-        return (_pair(g["home"], g["away"]), "y", d["birthYear"])
+        return (_pair(g["home"], g["away"]), d.get("gender"), "y", d["birthYear"])
     if d.get("teamLabel"):
-        return (_pair(g["home"], g["away"]), "l", d["teamLabel"])
-    return (_pair(g["home"], g["away"]), "*", None)
+        return (_pair(g["home"], g["away"]), d.get("gender"), "l", d["teamLabel"])
+    return (_pair(g["home"], g["away"]), d.get("gender"), "*", None)
 
 
 def match_slots(slots, games, divisions):

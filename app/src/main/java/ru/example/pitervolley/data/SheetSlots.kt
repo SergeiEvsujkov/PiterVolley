@@ -151,7 +151,9 @@ object SheetSlots {
 
         val slotGroups = HashMap<String, MutableList<Slot>>()
         for (slot in slots) {
-            slotGroups.getOrPut(slotKey(slot.home, slot.away, slot.year, slot.label)) { ArrayList() } += slot
+            slotGroups.getOrPut(
+                slotKey(slot.home, slot.away, genderOf(slot.group), slot.year, slot.label),
+            ) { ArrayList() } += slot
         }
         for (group in slotGroups.values) {
             group.sortWith(compareBy({ it.date }, { it.time }, { it.num ?: 0 }))
@@ -161,7 +163,9 @@ object SheetSlots {
         for (game in games) {
             if (game.hasResult) continue
             val division = divisions[game.divisionId] ?: continue
-            gameGroups.getOrPut(slotKey(game.home, game.away, division.birthYear, division.teamLabel)) { ArrayList() } += game
+            gameGroups.getOrPut(
+                slotKey(game.home, game.away, division.gender, division.birthYear, division.teamLabel),
+            ) { ArrayList() } += game
         }
 
         var applied = 0
@@ -173,26 +177,40 @@ object SheetSlots {
             }
         }
 
-        // одна игра пары без возраста/номера команды — берём единственный слот
+        // одна игра пары без возраста/номера команды — берём единственный слот того же пола
         val singleByPair = slotGroups
             .filterKeys { it.endsWith("|*") }
             .values
             .flatten()
-            .groupBy { pairKey(it.home, it.away) }
+            .groupBy { pairKey(it.home, it.away) to genderOf(it.group) }
         for (game in games) {
             if (game.hasResult || game.dateSource == "sheet") continue
-            val candidates = singleByPair[pairKey(game.home, game.away)].orEmpty()
+            val division = divisions[game.divisionId] ?: continue
+            val candidates = singleByPair[pairKey(game.home, game.away) to division.gender].orEmpty()
             if (candidates.size == 1 && applySlot(game, candidates[0])) applied++
         }
         return applied
     }
 
-    private fun slotKey(home: String, away: String, year: Int?, label: Int?): String {
-        val pair = pairKey(home, away)
+    /** Группа из таблицы («дев», «юн», «муж», «жен») → пол дивизиона. */
+    fun genderOf(group: String): String? {
+        val g = group.trim().lowercase()
         return when {
-            year != null -> "$pair|y=$year"
-            label != null -> "$pair|l=$label"
-            else -> "$pair|*"
+            g.startsWith("дев") -> "girls"
+            g.startsWith("юн") -> "boys"
+            g.startsWith("муж") -> "men"
+            g.startsWith("жен") -> "women"
+            else -> null
+        }
+    }
+
+    private fun slotKey(home: String, away: String, gender: String?, year: Int?, label: Int?): String {
+        val pair = pairKey(home, away)
+        val g = gender ?: "*"
+        return when {
+            year != null -> "$pair|$g|y=$year"
+            label != null -> "$pair|$g|l=$label"
+            else -> "$pair|$g|*"
         }
     }
 

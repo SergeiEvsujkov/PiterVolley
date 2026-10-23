@@ -15,7 +15,7 @@ class SheetSlotsTest {
     @Test
     fun `row expands into several games with staggered time`() {
         val csv = header + "\n" +
-            "24,07.10.2026,ср,16:00,дев,Ижорец,-,Московская,\"Колпино, ул. Тверская, д.25\",2,Коляда,Реутов,\"2013,2010\","
+            "24,07.10.2026,ср,16:00,юн,Ижорец,-,Московская,\"Колпино, ул. Тверская, д.25\",2,Коляда,Реутов,\"2013,2010\","
         val slots = SheetSlots.parse(csv)
 
         assertEquals(2, slots.size)
@@ -30,14 +30,14 @@ class SheetSlotsTest {
     @Test
     fun `cancelled rows are skipped`() {
         val csv = header + "\n" +
-            "!24,07.10.2026,ср,16:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
+            "!24,07.10.2026,ср,16:00,юн,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
         assertTrue(SheetSlots.parse(csv).isEmpty())
     }
 
     @Test
     fun `zalozena means no date and clears site date`() {
         val csv = header + "\n" +
-            "30,заложена,,16:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
+            "30,заложена,,16:00,юн,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
         val slots = SheetSlots.parse(csv)
         assertEquals(1, slots.size)
         assertEquals("", slots[0].date)
@@ -95,10 +95,29 @@ class SheetSlotsTest {
     }
 
     @Test
+    fun `girls slot does not leak into boys game of the same pair and year`() {
+        val csv = header + "\n" +
+            "20,14.10.2026,ср,16:00,дев,ЦФКиС,-,Василеостровская-1,Зал,1,Судья,Судья,2010,"
+        val slots = SheetSlots.parse(csv)
+
+        val boys = Division(2, "Первенство", "Первенство СПб", "boys", 2010, null)
+        val girls = Division(9, "Первенство", "Первенство СПб", "girls", 2010, null)
+        val boysGame = Game(id = "b", divisionId = 2, date = "2026-10-14", home = "ЦФКиС", away = "Василеостровская-1")
+        val girlsGame = Game(id = "g", divisionId = 9, date = "2026-10-14", home = "ЦФКиС", away = "Василеостровская-1")
+
+        SheetSlots.apply(listOf(boysGame, girlsGame), slots, mapOf(2 to boys, 9 to girls))
+
+        assertEquals("2026-10-14", girlsGame.date)
+        assertEquals("sheet", girlsGame.dateSource)
+        assertEquals("2026-10-14", boysGame.date)
+        assertNull(boysGame.dateSource)
+    }
+
+    @Test
     fun `two legs of the same pair get different dates`() {
         val csv = header + "\n" +
-            "10,07.10.2026,ср,16:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,\n" +
-            "20,20.11.2026,пт,18:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
+            "10,07.10.2026,ср,16:00,юн,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,\n" +
+            "20,20.11.2026,пт,18:00,юн,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
         val slots = SheetSlots.parse(csv)
         val division = Division(1, "Первенство", "Первенство СПб", "boys", 2013, null)
 
@@ -113,7 +132,7 @@ class SheetSlotsTest {
     @Test
     fun `sheet overrides site date but not played games`() {
         val csv = header + "\n" +
-            "24,07.10.2026,ср,16:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
+            "24,07.10.2026,ср,16:00,юн,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,"
         val slots = SheetSlots.parse(csv)
         val division = Division(1, "Первенство", "Первенство СПб", "boys", 2013, null)
 
