@@ -32,6 +32,7 @@ object SiteSync {
     private const val KEY_SITE_OK = "last_site_ok"
     private const val KEY_SHEET_OK = "last_sheet_ok"
     private const val KEY_GITHUB_OK = "last_github_ok"
+    private const val KEY_FALLBACK_DATE = "last_fallback_date"
     private const val KEY_FAILED = "last_failed"
     private const val UA = "VolleyPiter/0.1 (+android)"
 
@@ -76,99 +77,120 @@ object SiteSync {
                 return@runCatching 0
             }
 
-            // Основной путь: готовый датасет с GitHub Pages (его собирает ETL).
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+            // Основной и единственный постоянный путь: готовый датасет с GitHub Pages.
             val fromGithub = runCatching { fetchDataset() }
-            if (fromGithub.isSuccess) {
-                val dataset = fromGithub.getOrThrow()
-                saveDataset(context, dataset)
-                Repo.apply(dataset)
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit()
-                    .putLong(KEY_LAST, now)
-                    .putBoolean(KEY_GITHUB_OK, true)
-                    .putBoolean(KEY_SITE_OK, false)
-                    .putBoolean(KEY_SHEET_OK, false)
-                    .putBoolean(KEY_FAILED, false)
-                    .apply()
-                return@runCatching dataset.games.size
+            val github = fromGithub.getOrNull()
+
+            if (github != null && generatedToday(github.generatedAt)) {
+                return@runCatching useGithub(context, github, now)
             }
 
-            // Запасной путь: обход сайта и таблицы, если GitHub недоступен.
-            val previous = if (Repo.isLoaded) Repo.data else null
-            val divisions = ArrayList<Division>(DIVISIONS)
-            val teamIds = LinkedHashMap<String, Team>()
-            val games = ArrayList<Game>()
+            // Обход сайта разрешён только один раз за календарный день и только
+            // если ETL не опубликовал сегодняшние данные.
+            val fallbackUsedToday = prefs.getString(KEY_FALLBACK_DATE, null) == today
+            if (fallbackUsedToday) {
+                if (github != null) return@runCatching useGithub(context, github, now)
+                throw fromGithub.exceptionOrNull() ?: IllegalStateException("нет данных")
+            }
 
-            var siteOk = true
+            prefs.edit().putString(KEY_FALLBACK_DATE, today).apply()
             try {
-                for (tid in 1..DIVISIONS) {
-                    val html = get("$BASE/table?tid=$tid")
-                    val parsed = parseDivision(tid, html)
-                    divisions += parsed.division
-                    games += parsed.games
-                    for (team in parsed.teams) teamIds[team.id] = team
-                    delay(120)
-                }
+                crawlAndSave(context, github, now)
             } catch (e: Exception) {
-                // сайт недоступен: остаёмся на прежних данных, но расписание из таблицы применим
-                if (previous == null) throw e
-                siteOk = false
-                divisions.clear()
-                divisions.addAll(previous.divisions)
-                games.clear()
-                games.addAll(previous.games.map { it.copy() })
-                teamIds.clear()
-                previous.teams.forEach { teamIds[it.id] = it }
+                if (github != null) return@runCatching useGithub(context, github, now)
+                throw e
             }
-
-            val slots = runCatching { SheetSlots.parse(get(sheetCsvUrl())) }.getOrElse { emptyList() }
-            val sheetOk = slots.isNotEmpty()
-            if (!siteOk && !sheetOk) throw IllegalStateException("Нет данных ни с сайта, ни из таблицы")
-
-            SheetSlots.apply(games, slots, divisions.associateBy { it.id })
-
-            val knownLogos = previous?.teams?.associate { it.id to it.logo }.orEmpty()
-            val teams = teamIds.values.map { it.copy(logo = knownLogos[it.id] ?: it.logo) }
-
-            val players = previous?.players?.filter { p -> teamIds.containsKey(p.teamId) }.orEmpty()
-
-            val dataset = Dataset(
-                schema = 1,
-                generatedAt = java.time.Instant.now().toString(),
-                season = previous?.season ?: "2026-27",
-                divisions = divisions,
-                teams = teams,
-                players = players,
-                games = games,
-                slots = slots,
-            )
-
-            val text = json.encodeToString(Dataset.serializer(), dataset)
-            val tmp = File(context.filesDir, "data.json.tmp")
-            tmp.writeText(text)
-            val target = File(context.filesDir, "data.json")
-            if (!tmp.renameTo(target)) {
-                target.writeText(text)
-                tmp.delete()
-            }
-
-            Repo.apply(dataset)
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putLong(KEY_LAST, now)
-                .putBoolean(KEY_GITHUB_OK, false)
-                .putBoolean(KEY_SITE_OK, siteOk)
-                .putBoolean(KEY_SHEET_OK, sheetOk)
-                .putBoolean(KEY_FAILED, false)
-                .apply()
-
-            games.size
         }.also { result ->
             if (result.isFailure) {
                 context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     .edit().putBoolean(KEY_FAILED, true).apply()
             }
         }
+    }
+
+    private fun generatedToday(iso: String): Boolean {
+        val instant = runCatching { java.time.Instant.parse(iso) }.getOrNull() ?: return false
+        val date = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        return date == java.time.LocalDate.now()
+    }
+
+    private fun useGithub(context: Context, dataset: Dataset, now: Long): Int {
+        saveDataset(context, dataset)
+        Repo.apply(dataset)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_LAST, now)
+            .putBoolean(KEY_GITHUB_OK, true)
+            .putBoolean(KEY_SITE_OK, false)
+            .putBoolean(KEY_SHEET_OK, false)
+            .putBoolean(KEY_FAILED, false)
+            .apply()
+        return dataset.games.size
+    }
+
+    /** Разовый запасной путь: обход сайта и таблицы (не чаще раза в календарный день). */
+    private suspend fun crawlAndSave(context: Context, github: Dataset?, now: Long): Int {
+        val previous = if (Repo.isLoaded) Repo.data else github
+        val divisions = ArrayList<Division>(DIVISIONS)
+        val teamIds = LinkedHashMap<String, Team>()
+        val games = ArrayList<Game>()
+
+        var siteOk = true
+        try {
+            for (tid in 1..DIVISIONS) {
+                val html = get("$BASE/table?tid=$tid")
+                val parsed = parseDivision(tid, html)
+                divisions += parsed.division
+                games += parsed.games
+                for (team in parsed.teams) teamIds[team.id] = team
+                delay(120)
+            }
+        } catch (e: Exception) {
+            if (previous == null) throw e
+            siteOk = false
+            divisions.clear()
+            divisions.addAll(previous.divisions)
+            games.clear()
+            games.addAll(previous.games.map { it.copy() })
+            teamIds.clear()
+            previous.teams.forEach { teamIds[it.id] = it }
+        }
+
+        val slots = runCatching { SheetSlots.parse(get(sheetCsvUrl())) }.getOrElse { emptyList() }
+        val sheetOk = slots.isNotEmpty()
+        if (!siteOk && !sheetOk) throw IllegalStateException("Нет данных ни с сайта, ни из таблицы")
+
+        SheetSlots.apply(games, slots, divisions.associateBy { it.id })
+
+        val knownLogos = previous?.teams?.associate { it.id to it.logo }.orEmpty()
+        val teams = teamIds.values.map { it.copy(logo = knownLogos[it.id] ?: it.logo) }
+        val players = previous?.players?.filter { p -> teamIds.containsKey(p.teamId) }.orEmpty()
+
+        val dataset = Dataset(
+            schema = 1,
+            generatedAt = java.time.Instant.now().toString(),
+            season = previous?.season ?: "2026-27",
+            divisions = divisions,
+            teams = teams,
+            players = players,
+            games = games,
+            slots = slots,
+        )
+
+        saveDataset(context, dataset)
+        Repo.apply(dataset)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_LAST, now)
+            .putBoolean(KEY_GITHUB_OK, false)
+            .putBoolean(KEY_SITE_OK, siteOk)
+            .putBoolean(KEY_SHEET_OK, sheetOk)
+            .putBoolean(KEY_FAILED, false)
+            .apply()
+        return games.size
     }
 
     /** Откуда удалось обновить данные в последний раз. */
