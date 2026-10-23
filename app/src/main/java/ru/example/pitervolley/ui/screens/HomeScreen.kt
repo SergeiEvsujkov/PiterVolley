@@ -104,18 +104,24 @@ fun HomeScreen(
         favoriteIds + favoritePersons.flatMap { person -> person.teams.map { it.id } }
     }
     val favoriteGames = remember(revision, trackedTeamIds) {
-        val start = ru.example.pitervolley.data.today()
         ds.games
             .filter {
                 (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) &&
-                    it.localDate != null && !it.localDate!!.isBefore(start)
+                    it.localDate != null && !Repo.isPastGame(it)
             }
             .sortedWith(compareBy({ it.localDate }, { it.time }))
-            .take(5)
+            .take(6)
     }
     var showPast by rememberSaveable { mutableStateOf(false) }
     val upcoming = remember(revision) { Repo.upcoming(6) }
     val pastGames = remember(revision) { Repo.past(6) }
+    var favShowPast by rememberSaveable { mutableStateOf(false) }
+    val favoritePast = remember(revision, trackedTeamIds) {
+        ds.games
+            .filter { (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) && Repo.isPastGame(it) }
+            .sortedWith(compareByDescending<ru.example.pitervolley.data.Game> { it.localDate }.thenByDescending { it.time })
+            .take(6)
+    }
     val played = remember(revision) { ds.games.count { it.hasResult } }
     val venuesCount = remember(revision) { ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size }
 
@@ -236,9 +242,43 @@ fun HomeScreen(
                     }
                 }
 
-                if (favoriteGames.isNotEmpty()) {
-                    item { SectionTitle("Их ближайшие игры") }
-                    items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
+                if (trackedTeamIds.isNotEmpty()) {
+                    item {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(onClick = { if (favShowPast) favShowPast = false }) {
+                                Text(
+                                    "Ближайшие",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (favShowPast) FontWeight.Medium else FontWeight.Bold,
+                                    color = if (favShowPast) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else MaterialTheme.colorScheme.onBackground,
+                                )
+                            }
+                            TextButton(onClick = { if (!favShowPast) favShowPast = true }) {
+                                Text(
+                                    "Прошедшие",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (favShowPast) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (favShowPast) MaterialTheme.colorScheme.onBackground
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    val favFeed = if (favShowPast) favoritePast else favoriteGames
+                    if (favFeed.isEmpty()) {
+                        item {
+                            ru.example.pitervolley.ui.EmptyState(
+                                if (favShowPast) "Прошедших игр пока нет" else "Ближайших игр пока нет",
+                            )
+                        }
+                    }
+                    items(favFeed, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
                         GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
                     }
                 }

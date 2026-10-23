@@ -94,6 +94,7 @@ const S = {
   calMonth: null,
   calDay: null,
   homePast: false,
+  favPast: false,
   calDivision: 0,
   searchQuery: '',
 };
@@ -670,9 +671,13 @@ function screenHome() {
     .filter(isPastGame)
     .sort((a, b) => sortGames(b, a))
     .slice(0, 6);
-  const myGames = S.data.games
-    .filter(g => g.date && g.date >= todayIso() && (tracked.has(g.homeId) || tracked.has(g.awayId)))
+  const myUpcoming = S.data.games
+    .filter(g => (tracked.has(g.homeId) || tracked.has(g.awayId)) && gameStart(g) != null && !isPastGame(g))
     .sort(sortGames)
+    .slice(0, 6);
+  const myPast = S.data.games
+    .filter(g => (tracked.has(g.homeId) || tracked.has(g.awayId)) && isPastGame(g))
+    .sort((a, b) => sortGames(b, a))
     .slice(0, 6);
   const played = S.data.games.filter(g => g.score).length;
   const venues = new Set(S.data.games.map(g => g.venue).filter(Boolean));
@@ -741,9 +746,22 @@ function screenHome() {
     wrap.append(card);
   }
 
-  if (myGames.length) {
-    wrap.append(el('h2', 'section', 'Их ближайшие игры'));
-    for (const game of myGames) wrap.append(gameCard(game));
+  if (tracked.size) {
+    const favPast = !!S.favPast;
+    const favTabs = el('div', 'seghead');
+    for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
+      const button = el('button', (value === favPast ? 'on ' : '') + 'segbtn', label);
+      button.addEventListener('click', () => {
+        if (value !== favPast) { S.favPast = value; render(); }
+      });
+      favTabs.append(button);
+    }
+    wrap.append(favTabs);
+    const favFeed = favPast ? myPast : myUpcoming;
+    if (!favFeed.length) {
+      wrap.append(el('div', 'empty', favPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
+    }
+    for (const game of favFeed) wrap.append(gameCard(game));
   }
 
   const showPast = !!S.homePast;
