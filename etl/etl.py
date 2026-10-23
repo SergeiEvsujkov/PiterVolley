@@ -22,7 +22,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RAW = os.path.join(HERE, "raw")
 OUT = os.path.join(HERE, "out")
 SITE = "https://pitervolley.ru"
-SHEET_ID = "1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4"
+SHEET_ID = os.environ.get("VP_SHEET_ID", "1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4")
+SHEET_ATTEMPTS = 3
 UA = {"User-Agent": "VolleyPiter/0.1 (+data sync)"}
 DELAY = 0.35
 
@@ -423,6 +424,22 @@ def match_slots(slots, games, divisions):
 
 # ---------------------------------------------------------------- main
 
+def load_sheet():
+    """Таблица расписания с несколькими попытками: сайт важнее, но без таблицы тоже публикуем."""
+    url = "https://docs.google.com/spreadsheets/d/%s/export?format=xlsx" % SHEET_ID
+    for attempt in range(1, SHEET_ATTEMPTS + 1):
+        try:
+            xls = fetch(url, "sheet.xlsx", binary=True)
+            slots = parse_sheet(xls)
+            if slots:
+                return slots
+            log("sheet: пустой ответ, попытка %d/%d" % (attempt, SHEET_ATTEMPTS))
+        except Exception as e:
+            log("sheet failed (попытка %d/%d): %s" % (attempt, SHEET_ATTEMPTS, e))
+        time.sleep(3)
+    return []
+
+
 def load_previous():
     path = os.path.join(os.path.dirname(HERE), "docs", "data.json")
     try:
@@ -482,16 +499,10 @@ def main():
         g.pop("homeName", None)
         g.pop("awayName", None)
 
-    slots = []
-    try:
-        xls = fetch("https://docs.google.com/spreadsheets/d/%s/export?format=xlsx" % SHEET_ID,
-                    "sheet.xlsx", binary=True)
-        slots = parse_sheet(xls)
-        sources["sheet"] = bool(slots)
-        if not slots:
-            log("sheet returned no rows")
-    except Exception as e:
-        log("sheet failed:", e)
+    slots = load_sheet()
+    sources["sheet"] = bool(slots)
+    if not slots:
+        log("sheet unavailable: публикуем данные сайта без расписания")
 
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")

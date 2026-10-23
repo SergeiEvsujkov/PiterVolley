@@ -23,6 +23,8 @@ def load(path):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default=os.path.join(HERE, "out", "data.json"))
     parser.add_argument("--previous", default=os.path.join(ROOT, "docs", "data.json"))
@@ -46,7 +48,7 @@ def main():
     if not sources.get("site"):
         errors.append("сайт pitervolley.ru не собрался (sources.site = false)")
     if not sources.get("sheet"):
-        errors.append("таблица расписания не собралась (sources.sheet = false)")
+        notes.append("таблица расписания недоступна — публикуем данные сайта без расписания")
 
     # 3. Дата сборки — сегодняшняя
     generated = (data.get("generatedAt") or "")[:10]
