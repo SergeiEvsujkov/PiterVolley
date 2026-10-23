@@ -86,6 +86,8 @@ const S = {
   playerPerson: new Map(),  // playerId -> personKey
   favTeams: new Set(JSON.parse(localStorage.getItem('vp.favTeams') || '[]')),
   favPersons: new Set(JSON.parse(localStorage.getItem('vp.favPersons') || '[]')),
+  splits: new Set(JSON.parse(localStorage.getItem('vp.splits') || '[]')),
+  merges: new Map(Object.entries(JSON.parse(localStorage.getItem('vp.merges') || '{}'))),
   gender: 'all',
   year: 0,
   calMode: 'list',
@@ -101,14 +103,15 @@ function saveFavorites() {
 }
 
 function isFavTeam(id) { return S.favTeams.has(id); }
-function isFavPerson(key) { return S.favPersons.has(key); }
+function isFavPerson(key) { return S.favPersons.has(resolveKey(key)); }
 function toggleFavTeam(id) {
   if (S.favTeams.has(id)) S.favTeams.delete(id); else S.favTeams.add(id);
   saveFavorites();
   render();
 }
 function toggleFavPerson(key) {
-  if (S.favPersons.has(key)) S.favPersons.delete(key); else S.favPersons.add(key);
+  const resolved = resolveKey(key);
+  if (S.favPersons.has(resolved)) S.favPersons.delete(resolved); else S.favPersons.add(resolved);
   saveFavorites();
   render();
 }
@@ -116,13 +119,62 @@ function toggleFavPerson(key) {
 function trackedTeamIds() {
   const ids = new Set(S.favTeams);
   for (const key of S.favPersons) {
-    const person = S.persons.get(key);
+    const person = S.persons.get(resolveKey(key));
     if (person) for (const team of person.teams) ids.add(team.id);
   }
   return ids;
 }
 
 /* ------------------------------------------------------------------ data */
+
+function saveOverrides() {
+  localStorage.setItem('vp.splits', JSON.stringify([...S.splits]));
+  localStorage.setItem('vp.merges', JSON.stringify(Object.fromEntries(S.merges)));
+}
+
+function resolveKey(key) {
+  let current = key;
+  const seen = new Set();
+  while (S.merges.has(current) && !seen.has(current)) {
+    seen.add(current);
+    current = S.merges.get(current);
+  }
+  return current;
+}
+
+function effectiveKey(player) {
+  if (S.splits.has(player.id)) return 'id:' + player.id;
+  return resolveKey(personKey(player.name, player.birthYear));
+}
+
+function baseKey(player) {
+  return personKey(player.name, player.birthYear);
+}
+
+function splitPlayer(player) {
+  S.splits.add(player.id);
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
+
+function mergePerson(fromKey, toKey) {
+  const from = resolveKey(fromKey);
+  const to = resolveKey(toKey);
+  if (from === to) return;
+  S.merges.set(from, to);
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
+
+function resetOverrides() {
+  S.splits.clear();
+  S.merges.clear();
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
 
 function buildIndexes(data) {
   S.divisions.clear();
@@ -134,7 +186,7 @@ function buildIndexes(data) {
   for (const t of data.teams) S.teams.set(t.id, t);
 
   for (const p of data.players) {
-    const key = personKey(p.name, p.birthYear);
+    const key = effectiveKey(p);
     let person = S.persons.get(key);
     if (!person) {
       person = { key, name: p.name, birthYear: p.birthYear, photo: p.photo, players: [], teams: [] };
@@ -146,7 +198,7 @@ function buildIndexes(data) {
     if (team && !person.teams.some(t => t.id === team.id)) person.teams.push(team);
   }
   for (const p of data.players) {
-    S.playerPerson.set(p.id, personKey(p.name, p.birthYear));
+    S.playerPerson.set(p.id, effectiveKey(p));
   }
 }
 
@@ -230,6 +282,7 @@ const ICON_PATHS = {
   pin: '<path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/>',
   star: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="currentColor"/>',
   starOutline: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   whistle: '<path d="M4 10h9l3-3h4v5l-4 2H9a5 5 0 1 1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
 };
 
@@ -582,7 +635,7 @@ function screenHome() {
     wrap.append(card);
   }
 
-  const favPersonList = [...S.favPersons].map(key => S.persons.get(key)).filter(Boolean);
+  const favPersonList = [...S.favPersons].map(key => S.persons.get(resolveKey(key))).filter(Boolean);
   if (favPersonList.length) {
     wrap.append(el('h2', 'section', 'Мои игроки'));
     const card = el('div', 'card flush');
@@ -865,7 +918,7 @@ function screenTeam(teamId) {
     card.append(personAvatar(person || player));
     card.append(el('div', 'playername', player.name));
     if (player.birthYear) card.append(el('div', 'small muted', `${player.birthYear} г.р.`));
-    card.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}`; });
+    card.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}/${player.id}`; });
     grid.append(card);
   }
   wrap.append(grid);
@@ -880,10 +933,12 @@ function screenTeam(teamId) {
   return wrap;
 }
 
-function screenPlayer(key) {
+function screenPlayer(key, playerId) {
   const person = S.persons.get(key);
   if (!person) return el('div', 'empty', 'Игрок не найден');
+  const player = playerId ? S.data.players.find(item => item.id === playerId) : null;
   const wrap = document.createDocumentFragment();
+
   const profile = el('div', 'profile');
   profile.append(personAvatar(person));
   const info = el('div');
@@ -910,8 +965,99 @@ function screenPlayer(key) {
     wrap.append(card);
   }
 
-  wrap.append(el('div', 'notice', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));
+  const canSplit = player && person.players.length > 1 && !S.splits.has(player.id);
+  const edited = person.key.startsWith('id:') || person.players.some(item =>
+    S.splits.has(item.id) || S.merges.has(baseKey(item)) || person.key !== baseKey(item));
+  {
+    wrap.append(el('h2', 'section', 'Если это ошибка'));
+    const tools = el('div', 'card');
+    tools.append(el('div', 'small muted', 'Федерация иногда пишет одно имя по-разному или, наоборот, склеивает разных детей. Здесь это можно исправить.'));
+    const buttons = el('div', 'buttonrow');
+
+    if (canSplit) {
+      const split = el('button', 'btn btn-ghost', 'Это разные люди');
+      split.addEventListener('click', () => {
+        const target = 'id:' + player.id;
+        splitPlayer(player);
+        location.hash = `#/player/${encodeURIComponent(target)}/${player.id}`;
+      });
+      buttons.append(split);
+    }
+
+    const link = el('button', 'btn', 'Связать с игроком');
+    link.addEventListener('click', () => openMergeDialog(resolveKey(key)));
+    buttons.append(link);
+    tools.append(buttons);
+    wrap.append(tools);
+  }
+
+  if (edited) {
+    const notice = el('div', 'notice');
+    notice.append(el('div', null, 'Есть ручные правки группировки игроков. От этого зависят счётчик игроков, избранное и список игр.'));
+    const reset = el('button', 'linkish', 'Сбросить все правки');
+    reset.addEventListener('click', () => { resetOverrides(); location.hash = '#/player/' + encodeURIComponent(person.key); });
+    notice.append(reset);
+    wrap.append(notice);
+  }
+
+  wrap.append(el('div', 'caption', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));
   return wrap;
+}
+
+function openMergeDialog(fromKey) {
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', 'Связать с игроком'));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const box = el('div', 'searchbox');
+  const input = el('input');
+  input.type = 'search';
+  input.placeholder = 'Имя игрока';
+  box.append(input);
+  sheet.append(box);
+
+  const results = el('div', 'results');
+  sheet.append(results);
+
+  const paint = value => {
+    const needle = fold(value);
+    results.replaceChildren();
+    const people = [...S.persons.values()]
+      .filter(person => resolveKey(person.key) !== resolveKey(fromKey))
+      .filter(person => !needle || fold(person.name).includes(needle))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      .slice(0, 30);
+    if (!people.length) {
+      results.append(el('div', 'empty', 'Никого не нашли'));
+      return;
+    }
+    for (const person of people) {
+      const row = el('div', 'row pad');
+      row.append(personAvatar(person));
+      const text = el('div', 'grow');
+      text.append(el('div', null, person.name));
+      text.append(el('div', 'small muted', person.birthYear ? `${person.birthYear} г.р.` : ''));
+      row.append(text);
+      row.addEventListener('click', () => {
+        mergePerson(fromKey, person.key);
+        overlay.remove();
+        location.hash = `#/player/${encodeURIComponent(resolveKey(person.key))}`;
+      });
+      results.append(row);
+    }
+  };
+  paint('');
+
+  input.addEventListener('input', () => paint(input.value));
+  close.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
 }
 
 function screenGame(divisionId, gameId) {
@@ -1307,6 +1453,19 @@ function screenSettings() {
   install.append(el('div', 'small muted', 'Safari → «Поделиться» → «На экран Домой». Появится иконка, приложение откроется без адресной строки и будет работать офлайн.'));
   wrap.append(install);
 
+  wrap.append(el('h2', 'section', 'Ручная группировка игроков'));
+  const grouping = el('div', 'card');
+  grouping.append(el('div', 'small muted', 'Правки на карточке игрока: «Это разные люди» и «Связать с игроком». Сейчас правок: ' +
+    `${S.splits.size} ${plural(S.splits.size, 'разделение', 'разделения', 'разделений')}, ` +
+    `${S.merges.size} ${plural(S.merges.size, 'объединение', 'объединения', 'объединений')}.`));
+  if (S.splits.size || S.merges.size) {
+    const reset = el('button', 'btn btn-ghost', 'Сбросить все правки');
+    reset.style.marginTop = '10px';
+    reset.addEventListener('click', () => resetOverrides());
+    grouping.append(reset);
+  }
+  wrap.append(grouping);
+
   wrap.append(el('h2', 'section', 'О проекте'));
   const about = el('div', 'card about');
   about.append(el('p', null, 'VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.'));
@@ -1379,8 +1538,9 @@ function render() {
     back = true;
   } else if (route === 'player') {
     const key = decodeURIComponent(parts[1] || '');
+    const playerId = parts[2] ? decodeURIComponent(parts[2]) : null;
     const person = S.persons.get(key);
-    content = screenPlayer(key);
+    content = screenPlayer(key, playerId);
     if (person) title = person.name;
     back = true;
   } else if (route === 'game') {
