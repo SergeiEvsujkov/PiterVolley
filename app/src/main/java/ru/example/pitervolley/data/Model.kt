@@ -103,6 +103,10 @@ data class Slot(
     val comment: String = "",
     val gameIds: List<String>? = null,
     val divisionId: Int? = null,
+    /** Год рождения дивизиона из колонки «Возраст». */
+    val year: Int? = null,
+    /** Номер команды Чемпионата (1-я или 2-я) для строк без возрастов. */
+    val label: Int? = null,
 )
 
 // ------------------------------------------------------------------ date helpers

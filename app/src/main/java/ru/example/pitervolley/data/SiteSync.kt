@@ -75,8 +75,8 @@ object SiteSync {
                 delay(120)
             }
 
-            val slots = runCatching { parseSheet(get(sheetCsvUrl())) }.getOrElse { emptyList() }
-            fillDatesFromSlots(games, slots)
+            val slots = runCatching { SheetSlots.parse(get(sheetCsvUrl())) }.getOrElse { emptyList() }
+            SheetSlots.apply(games, slots, divisions.associateBy { it.id })
 
             val knownLogos = previous?.teams?.associate { it.id to it.logo }.orEmpty()
             val teams = teamIds.values.map { it.copy(logo = knownLogos[it.id] ?: it.logo) }
@@ -234,107 +234,5 @@ object SiteSync {
         val s = raw.replace(Regex("\\s+"), " ").trim()
         if (s.trim('.', '…', '?', ' ') == "") return ""
         return VenueNormalizer.normalize(s)
-    }
-
-    // ------------------------------------------------------------------ sheet
-
-    private fun parseSheet(csv: String): List<Slot> {
-        val rows = parseCsv(csv)
-        if (rows.size < 2) return emptyList()
-        val slots = ArrayList<Slot>()
-        for (row in rows.drop(1)) {
-            if (row.size < 9) continue
-            val date = sheetDate(row.getOrElse(1) { "" }) ?: continue
-            val time = row.getOrElse(3) { "" }.take(5)
-            val ages = row.getOrElse(12) { "" }
-                .split(',', '.')
-                .mapNotNull { it.trim().toIntOrNull() }
-            slots += Slot(
-                num = row.getOrElse(0) { "" }.toDoubleOrNull()?.toInt(),
-                date = date,
-                time = time,
-                group = row.getOrElse(4) { "" }.trim(),
-                home = row.getOrElse(5) { "" }.trim(),
-                away = row.getOrElse(7) { "" }.trim(),
-                venue = normVenue(row.getOrElse(8) { "" }),
-                ages = ages,
-            )
-        }
-        return slots
-    }
-
-    private fun sheetDate(raw: String): String? {
-        val s = raw.trim()
-        Regex("""(\d{2})\.(\d{2})\.(\d{4})""").find(s)?.let {
-            return "${it.groupValues[3]}-${it.groupValues[2]}-${it.groupValues[1]}"
-        }
-        Regex("""(\d{4})-(\d{2})-(\d{2})""").find(s)?.let {
-            return "${it.groupValues[1]}-${it.groupValues[2]}-${it.groupValues[3]}"
-        }
-        return null
-    }
-
-    /** Minimal RFC4180 reader: handles quoted fields and embedded commas/newlines. */
-    private fun parseCsv(text: String): List<List<String>> {
-        val rows = ArrayList<List<String>>()
-        var row = ArrayList<String>()
-        val field = StringBuilder()
-        var inQuotes = false
-        var i = 0
-        while (i < text.length) {
-            val c = text[i]
-            when {
-                inQuotes && c == '"' && i + 1 < text.length && text[i + 1] == '"' -> {
-                    field.append('"'); i++
-                }
-                c == '"' -> inQuotes = !inQuotes
-                c == ',' && !inQuotes -> {
-                    row.add(field.toString()); field.clear()
-                }
-                (c == '\n' || c == '\r') && !inQuotes -> {
-                    if (c == '\r' && i + 1 < text.length && text[i + 1] == '\n') i++
-                    row.add(field.toString()); field.clear()
-                    rows.add(row); row = ArrayList()
-                }
-                else -> field.append(c)
-            }
-            i++
-        }
-        if (field.isNotEmpty() || row.isNotEmpty()) {
-            row.add(field.toString())
-            rows.add(row)
-        }
-        return rows
-    }
-
-    private fun normalizeName(raw: String): String =
-        raw.lowercase()
-            .replace('ё', 'е')
-            .replace(Regex("""[«»"'`.,]"""), "")
-            .replace(Regex("""\s+"""), " ")
-            .trim()
-
-    /** Fills games that have no date yet using the federation's schedule slots. */
-    private fun fillDatesFromSlots(games: List<Game>, slots: List<Slot>) {
-        if (slots.isEmpty()) return
-        val index = HashMap<String, Slot>()
-        for (slot in slots) {
-            index[pairKey(slot.home, slot.away)] = slot
-        }
-        for (game in games) {
-            if (!game.date.isNullOrBlank()) continue
-            val slot = index[pairKey(game.home, game.away)] ?: continue
-            game.date = slot.date
-            game.time = slot.time
-            if (game.venue.isBlank()) game.venue = slot.venue
-            game.slotNum = slot.num
-            game.dateSource = "sheet"
-        }
-    }
-
-    private fun pairKey(a: String, b: String): String {
-        val x = normalizeName(a)
-        val y = normalizeName(b)
-        return if (x <= y) "$x|$y" else "$y|$x"
     }
 }
