@@ -46,7 +46,12 @@ object Repo {
 
     /** Swap in an already parsed dataset (called from [SiteSync]). */
     fun apply(ds: Dataset) {
-        dataset = ds
+        // адреса залов приводим к единому виду, чтобы не было «дублей» одного зала
+        val normalized = ds.copy(
+            games = ds.games.map { it.copy(venue = VenueNormalizer.normalize(it.venue)) },
+            slots = ds.slots.map { it.copy(venue = VenueNormalizer.normalize(it.venue)) },
+        )
+        dataset = normalized
 
         divisionById = ds.divisions.associateBy { it.id }
         teamById = ds.teams.associateBy { it.id }

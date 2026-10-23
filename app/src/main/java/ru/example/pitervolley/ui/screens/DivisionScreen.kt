@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -119,7 +120,7 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, 
                 listOf("И", "В", "П", "Оч", "Пар").forEach {
                     Text(
                         it,
-                        Modifier.width(if (it == "Пар") 46.dp else 26.dp),
+                        Modifier.widthIn(min = if (it == "Пар") 46.dp else 26.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -145,17 +146,17 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, 
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(row.played.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                Text(row.wins.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                Text(row.losses.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.played.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.wins.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.losses.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 Text(
                     row.points.toString(),
-                    Modifier.width(26.dp),
+                    Modifier.widthIn(min = 26.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
-                Text(row.setsText, Modifier.width(46.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                Text(row.setsText, Modifier.widthIn(min = 46.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             }
             DividerLine()
         }
@@ -200,7 +201,7 @@ private fun CombinedTab(rows: List<ClubRow>, onOpenTeam: (String) -> Unit) {
                 listOf("И", "В", "П", "Оч", "Пар").forEach {
                     Text(
                         it,
-                        Modifier.width(if (it == "Пар") 46.dp else 26.dp),
+                        Modifier.widthIn(min = if (it == "Пар") 46.dp else 26.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -226,17 +227,17 @@ private fun CombinedTab(rows: List<ClubRow>, onOpenTeam: (String) -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(row.played.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                Text(row.wins.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                Text(row.losses.toString(), Modifier.width(26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.played.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.wins.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Text(row.losses.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 Text(
                     row.points.toString(),
-                    Modifier.width(26.dp),
+                    Modifier.widthIn(min = 26.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
-                Text(row.setsText, Modifier.width(46.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                Text(row.setsText, Modifier.widthIn(min = 46.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             }
             DividerLine()
         }

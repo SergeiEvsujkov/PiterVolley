@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -396,7 +397,7 @@ private fun YearRow(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(end = 16.dp),
         ) {
-            divisions.chunked(4).forEach { chunk ->
+            divisions.chunked(if (LocalDensity.current.fontScale > 1.15f) 3 else 4).forEach { chunk ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     chunk.forEach { division ->
                         Card(

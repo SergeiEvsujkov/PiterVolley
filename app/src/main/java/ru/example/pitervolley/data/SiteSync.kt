@@ -233,8 +233,7 @@ object SiteSync {
     private fun normVenue(raw: String): String {
         val s = raw.replace(Regex("\\s+"), " ").trim()
         if (s.trim('.', '…', '?', ' ') == "") return ""
-        return s.replace(Regex("""\s*,\s*"""), ", ")
-            .replace(Regex("""д\.\s*(\d)"""), "д.$1")
+        return VenueNormalizer.normalize(s)
     }
 
     // ------------------------------------------------------------------ sheet
