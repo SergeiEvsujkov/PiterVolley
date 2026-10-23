@@ -29,11 +29,13 @@ jobs:
       - name: Collect data
         run: python etl/etl.py --refresh
 
+      - name: Validate data
+        run: python etl/validate.py
+
       - name: Publish to GitHub Pages folder
         run: |
           mkdir -p docs
           cp etl/out/data.json docs/data.json
-          python etl/validate.py || true
 
       - name: Commit changes
         run: |

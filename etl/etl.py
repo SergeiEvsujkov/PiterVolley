@@ -32,6 +32,9 @@ os.makedirs(OUT, exist_ok=True)
 REFRESH = "--refresh" in sys.argv
 OFFLINE = "--offline" in sys.argv
 
+if OFFLINE and os.environ.get("CI"):
+    raise SystemExit("offline build is not allowed in CI: данные из кеша не публикуются")
+
 
 def log(*a):
     print(*a, flush=True)
@@ -501,6 +504,7 @@ def main():
         "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "season": "2026-27",
         "sources": sources,
+        "offline": OFFLINE,
         "counts": {
             "divisions": len(divisions), "teams": len(teams), "players": len(players),
             "games": len(games), "slots": len(slots),
