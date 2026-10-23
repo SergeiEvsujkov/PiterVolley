@@ -524,9 +524,13 @@ function screenHome() {
     for (const game of myGames) wrap.append(gameCard(game));
   }
 
-  wrap.append(el('h2', 'section', 'Ближайшие игры'));
+  const upcomingTitle = el('h2', 'section', 'Ближайшие игры');
+  const allGames = el('button', 'link', 'Все игры');
+  allGames.addEventListener('click', () => { location.hash = '#/calendar'; });
+  upcomingTitle.append(allGames);
+  wrap.append(upcomingTitle);
   if (!upcoming.length) wrap.append(el('div', 'empty', 'Ближайших игр пока нет'));
-  for (const game of upcoming) wrap.append(gameCard(game));
+  for (const game of upcoming.slice(0, 6)) wrap.append(gameCard(game));
 
   wrap.append(el('h2', 'section', 'Соревнования'));
   const competitions = el('div', 'stats');
@@ -550,6 +554,32 @@ function screenHome() {
   venueCard.append(venueRow);
   venueCard.addEventListener('click', () => { location.hash = '#/venues'; });
   wrap.append(venueCard);
+
+  wrap.append(el('h2', 'section', 'Дивизионы'));
+  const divisionsCard = el('div', 'card');
+  const groups = [
+    ['boys', 'Юноши'],
+    ['girls', 'Девушки'],
+    ['men', 'Мужчины'],
+    ['women', 'Женщины'],
+  ];
+  for (const [gender, label] of groups) {
+    const list = S.data.divisions
+      .filter(d => d.gender === gender)
+      .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+    if (!list.length) continue;
+    const block = el('div', 'divgroup');
+    block.append(el('div', 'divlabel', label));
+    const row = el('div', 'chips inner');
+    for (const division of list) {
+      const chip = el('button', 'chip', division.birthYear ? String(division.birthYear) : `${division.teamLabel}-я`);
+      chip.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
+      row.append(chip);
+    }
+    block.append(row);
+    divisionsCard.append(block);
+  }
+  wrap.append(divisionsCard);
 
   return wrap;
 }
