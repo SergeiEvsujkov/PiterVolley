@@ -72,15 +72,6 @@ fun TeamScreen(
         title = team.name,
         subtitle = division?.let { "${it.competition} · ${it.subtitle}" },
         onBack = onBack,
-        actions = {
-            TextButton(onClick = { Favorites.toggle(team.id) }) {
-                Text(
-                    text = if (isFavorite) "★" else "☆",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             item {
@@ -115,6 +106,13 @@ fun TeamScreen(
                                     .clickable(onClick = { onOpenDivision(division.id) }),
                             )
                         }
+                    }
+                    TextButton(onClick = { Favorites.toggle(team.id) }) {
+                        Text(
+                            text = if (isFavorite) "★" else "☆",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
             }
@@ -229,17 +227,6 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
     ScreenScaffold(
         title = player.name,
         onBack = onBack,
-        actions = {
-            if (person != null) {
-                TextButton(onClick = { Favorites.togglePerson(person.key) }) {
-                    Text(
-                        text = if (isFavorite) "★" else "☆",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        },
     ) { padding ->
         Column(
             Modifier
@@ -250,7 +237,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PlayerAvatar(player.photo, player.name, 120)
                 Spacer(Modifier.width(16.dp))
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(player.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     if (player.birthYear != null) {
@@ -258,6 +245,15 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                             "${player.birthYear} г.р.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (person != null) {
+                    TextButton(onClick = { Favorites.togglePerson(person.key) }) {
+                        Text(
+                            text = if (isFavorite) "★" else "☆",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
