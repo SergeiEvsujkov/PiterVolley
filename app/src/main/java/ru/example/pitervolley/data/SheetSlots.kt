@@ -112,13 +112,28 @@ object SheetSlots {
         return VenueNormalizer.normalize(s)
     }
 
-    fun normalizeName(raw: String): String =
-        raw.lowercase()
+    /** Приставки клуба, которые в таблице и на сайте пишут по-разному. */
+    private val CLUB_PREFIXES = listOf("гбоушиор", "гбоу", "гбу", "сшор", "сш", "дюсшор", "дюсш")
+
+    fun normalizeName(raw: String): String {
+        var s = raw.lowercase()
             .replace('ё', 'е')
             .replace('й', 'и')
             .replace(Regex("""[«»"'`.,]"""), "")
             .replace(Regex("""\s+"""), " ")
             .trim()
+        var changed = true
+        while (changed) {
+            changed = false
+            for (prefix in CLUB_PREFIXES) {
+                if (s.startsWith("$prefix ")) {
+                    s = s.removePrefix("$prefix ").trim()
+                    changed = true
+                }
+            }
+        }
+        return s
+    }
 
     fun pairKey(a: String, b: String): String {
         val x = normalizeName(a)

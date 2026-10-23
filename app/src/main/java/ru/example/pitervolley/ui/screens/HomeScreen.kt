@@ -118,7 +118,7 @@ fun HomeScreen(
 
     ScreenScaffold(
         title = "PiterVolley",
-        subtitle = "Волейбол Санкт-Петербурга · сезон ${ds.season}",
+        subtitle = "Волейбол СПб · сезон ${ds.season}",
         actions = {
             IconButton(onClick = onOpenSearch) {
                 Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = MaterialTheme.colorScheme.primary)

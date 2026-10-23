@@ -83,6 +83,18 @@ class SheetSlotsTest {
     }
 
     @Test
+    fun `club prefixes do not break matching`() {
+        assertEquals(
+            SheetSlots.pairKey("Экран", "Клуб"),
+            SheetSlots.pairKey("СШ ЭКРАН", "ГБУ Клуб"),
+        )
+        assertEquals(
+            SheetSlots.pairKey("Приморская-1", "Невская"),
+            SheetSlots.pairKey("СШОР Приморская-1", "Невская"),
+        )
+    }
+
+    @Test
     fun `two legs of the same pair get different dates`() {
         val csv = header + "\n" +
             "10,07.10.2026,ср,16:00,дев,Ижорец,-,Московская,Зал,1,Коляда,Реутов,2013,\n" +
