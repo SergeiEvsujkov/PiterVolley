@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ru.example.pitervolley.data.Repo
@@ -111,6 +112,8 @@ fun GameScreen(
                 Text(
                     text = game.home,
                     style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textDecoration = TextDecoration.Underline,
                     modifier = Modifier
                         .weight(1f)
                         .clickable { onOpenTeam(game.homeId) },
@@ -125,7 +128,9 @@ fun GameScreen(
                 Text(
                     text = game.away,
                     style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.End,
+                    textDecoration = TextDecoration.Underline,
                     modifier = Modifier
                         .weight(1f)
                         .clickable { onOpenTeam(game.awayId) },

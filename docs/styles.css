@@ -166,7 +166,11 @@ a{color:inherit;text-decoration:none}
 
 .scoreline{display:flex;align-items:center;gap:10px}
 .score{min-width:74px;text-align:center;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;color:var(--text)}
-.teamlink{cursor:pointer}
+.teamlink{
+  cursor:pointer;color:var(--brand);
+  text-decoration:underline;text-decoration-thickness:1px;
+  text-decoration-color:rgba(27,79,156,.35);text-underline-offset:3px;
+}
 .teamlink:active{opacity:.55}
 .right{text-align:right}
 
