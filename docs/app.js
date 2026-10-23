@@ -748,9 +748,15 @@ function screenHome() {
 
   const showPast = !!S.homePast;
   const feedTitle = el('h2', 'section', showPast ? 'Прошедшие' : 'Ближайшие');
-  const switchFeed = el('button', 'link', showPast ? 'Ближайшие' : 'Прошедшие');
-  switchFeed.addEventListener('click', () => { S.homePast = !showPast; render(); });
-  feedTitle.append(switchFeed);
+  const segment = el('div', 'seg');
+  for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
+    const button = el('button', (value === showPast ? 'on ' : '') + 'segbtn', label);
+    button.addEventListener('click', () => {
+      if (value !== showPast) { S.homePast = value; render(); }
+    });
+    segment.append(button);
+  }
+  feedTitle.append(segment);
   wrap.append(feedTitle);
   const feed = showPast ? pastGames : upcoming;
   if (!feed.length) {

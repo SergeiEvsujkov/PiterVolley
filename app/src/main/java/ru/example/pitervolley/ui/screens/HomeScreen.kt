@@ -247,11 +247,25 @@ fun HomeScreen(
                     SectionTitle(
                         text = if (showPast) "Прошедшие" else "Ближайшие",
                         trailing = {
-                            TextButton(onClick = { showPast = !showPast }) {
-                                Text(
-                                    if (showPast) "Ближайшие" else "Прошедшие",
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { if (showPast) showPast = false }) {
+                                    Text(
+                                        "Ближайшие",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (showPast) FontWeight.Normal else FontWeight.Bold,
+                                        color = if (showPast) MaterialTheme.colorScheme.onSurfaceVariant
+                                        else MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                TextButton(onClick = { if (!showPast) showPast = true }) {
+                                    Text(
+                                        "Прошедшие",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (showPast) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (showPast) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         },
                     )
