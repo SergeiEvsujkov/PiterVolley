@@ -24,10 +24,14 @@ object SiteSync {
     private const val BASE = "https://pitervolley.ru"
     private const val SHEET_ID = "1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4"
 
+    /** Готовый датасет, который собирает ETL и публикует GitHub Pages. */
+    private const val DATA_URL = "https://sergeievsujkov.github.io/PiterVolley/data.json"
+
     private const val PREFS = "sync"
     private const val KEY_LAST = "last_sync"
     private const val KEY_SITE_OK = "last_site_ok"
     private const val KEY_SHEET_OK = "last_sheet_ok"
+    private const val KEY_GITHUB_OK = "last_github_ok"
     private const val KEY_FAILED = "last_failed"
     private const val UA = "VolleyPiter/0.1 (+android)"
 
@@ -64,6 +68,24 @@ object SiteSync {
                 return@runCatching 0
             }
 
+            // Основной путь: готовый датасет с GitHub Pages (его собирает ETL).
+            val fromGithub = runCatching { fetchDataset() }
+            if (fromGithub.isSuccess) {
+                val dataset = fromGithub.getOrThrow()
+                saveDataset(context, dataset)
+                Repo.apply(dataset)
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong(KEY_LAST, now)
+                    .putBoolean(KEY_GITHUB_OK, true)
+                    .putBoolean(KEY_SITE_OK, false)
+                    .putBoolean(KEY_SHEET_OK, false)
+                    .putBoolean(KEY_FAILED, false)
+                    .apply()
+                return@runCatching dataset.games.size
+            }
+
+            // Запасной путь: обход сайта и таблицы, если GitHub недоступен.
             val previous = if (Repo.isLoaded) Repo.data else null
             val divisions = ArrayList<Division>(DIVISIONS)
             val teamIds = LinkedHashMap<String, Team>()
@@ -126,6 +148,7 @@ object SiteSync {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit()
                 .putLong(KEY_LAST, now)
+                .putBoolean(KEY_GITHUB_OK, false)
                 .putBoolean(KEY_SITE_OK, siteOk)
                 .putBoolean(KEY_SHEET_OK, sheetOk)
                 .putBoolean(KEY_FAILED, false)
@@ -141,11 +164,12 @@ object SiteSync {
     }
 
     /** Откуда удалось обновить данные в последний раз. */
-    enum class Source { BOTH, SITE_ONLY, SHEET_ONLY, FAILED, NONE }
+    enum class Source { GITHUB, BOTH, SITE_ONLY, SHEET_ONLY, FAILED, NONE }
 
     fun lastSource(context: Context): Source {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_FAILED, false)) return Source.FAILED
+        if (prefs.getBoolean(KEY_GITHUB_OK, false)) return Source.GITHUB
         val site = prefs.getBoolean(KEY_SITE_OK, false)
         val sheet = prefs.getBoolean(KEY_SHEET_OK, false)
         return when {
@@ -157,11 +181,30 @@ object SiteSync {
     }
 
     fun lastSourceText(context: Context): String? = when (lastSource(context)) {
+        Source.GITHUB -> "Данные: volleypiter.github.io"
         Source.BOTH -> "Данные: pitervolley.ru + volleyreferee.spb.ru"
         Source.SITE_ONLY -> "Данные: только pitervolley.ru — расписание недоступно"
         Source.SHEET_ONLY -> "Данные: только volleyreferee.spb.ru — сайт недоступен"
         Source.FAILED -> "Данные: обновление не удалось"
         Source.NONE -> null
+    }
+
+    private fun fetchDataset(): Dataset {
+        val text = get(DATA_URL)
+        val dataset = json.decodeFromString(Dataset.serializer(), text)
+        require(dataset.divisions.isNotEmpty() && dataset.games.isNotEmpty()) { "пустой набор данных" }
+        return dataset
+    }
+
+    private fun saveDataset(context: Context, dataset: Dataset) {
+        val text = json.encodeToString(Dataset.serializer(), dataset)
+        val tmp = File(context.filesDir, "data.json.tmp")
+        tmp.writeText(text)
+        val target = File(context.filesDir, "data.json")
+        if (!tmp.renameTo(target)) {
+            target.writeText(text)
+            tmp.delete()
+        }
     }
 
     private fun sheetCsvUrl(): String =
