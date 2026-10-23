@@ -220,3 +220,29 @@ a{color:inherit;text-decoration:none}
 .divlabel{font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .chips.inner{margin:0;padding:0 0 2px;flex-wrap:wrap;overflow:visible}
 .chips.inner .chip{padding:7px 13px;font-size:13px}
+
+/* ------------------------------------------------------------------ calendar month + icons */
+.ico{width:20px;height:20px;flex:0 0 auto}
+.toolbar{display:flex;align-items:center;gap:8px;margin:10px 0 2px}
+.toolbtn{width:42px;height:42px;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--brand);box-shadow:var(--shadow);padding:0}
+.toolbtn:active{background:var(--brand-soft)}
+.monthhead{display:flex;align-items:center;gap:10px;margin:12px 0 8px}
+.monthhead .center{text-align:center}
+.monthhead .chip{padding:6px 12px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.wd{text-align:center;font-size:11px;color:var(--muted);font-weight:650}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cell{position:relative;aspect-ratio:1/1;border-radius:12px;border:0;background:transparent;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text);font-weight:600;padding:0}
+.cell.has{background:var(--brand-soft)}
+.cell.sel{background:var(--brand);color:#fff}
+.cell .dot{position:absolute;bottom:6px;width:5px;height:5px;border-radius:50%;background:var(--brand)}
+.cell.sel .dot{background:#fff}
+.cell.empty{visibility:hidden}
+.stathead{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--brand)}
+.stathead b{font-size:28px;line-height:1.1;color:var(--text)}
+.roundicon{width:40px;height:40px;border-radius:50%;background:var(--orange-soft);color:var(--orange-dark);display:grid;place-items:center;flex:0 0 auto}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.player{background:var(--surface);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow)}
+.player img{width:46px;height:46px;border-radius:50%;object-fit:cover;background:var(--surface-2)}
+.playername{font-size:14px;font-weight:600;line-height:1.3}
+.star svg{width:26px;height:26px}

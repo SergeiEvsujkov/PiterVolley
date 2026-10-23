@@ -88,6 +88,10 @@ const S = {
   favPersons: new Set(JSON.parse(localStorage.getItem('vp.favPersons') || '[]')),
   gender: 'all',
   year: 0,
+  calMode: 'list',
+  calMonth: null,
+  calDay: null,
+  calDivision: 0,
   searchQuery: '',
 };
 
@@ -181,6 +185,42 @@ function gamesOfDivision(divisionId) {
 
 function isChampionship(division) {
   return !!division && division.competition.toLowerCase().includes('чемпионат');
+}
+
+const ICON_PATHS = {
+  home: '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 9.5h17M8 3.5V7M16 3.5V7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  list: '<path d="M8 6.5h12M8 12h12M8 17.5h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="4.2" cy="6.5" r="1.3" fill="currentColor"/><circle cx="4.2" cy="12" r="1.3" fill="currentColor"/><circle cx="4.2" cy="17.5" r="1.3" fill="currentColor"/>',
+  pin: '<path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  star: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="currentColor"/>',
+  starOutline: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  whistle: '<path d="M4 10h9l3-3h4v5l-4 2H9a5 5 0 1 1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+};
+
+function icon(name, cls) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', cls || 'ico');
+  svg.innerHTML = ICON_PATHS[name] || '';
+  return svg;
+}
+
+function starButton(isOn, onToggle) {
+  const button = el('button', 'star');
+  button.append(icon(isOn ? 'star' : 'starOutline'));
+  button.addEventListener('click', onToggle);
+  return button;
+}
+
+function iconButton(name, onTap) {
+  const button = el('button', 'toolbtn');
+  button.append(icon(name));
+  button.addEventListener('click', onTap);
+  return button;
+}
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const GENDER_COLORS = { boys: '#1b4f9c', girls: '#c2417f', men: '#2f7d4f', women: '#e8862e' };
@@ -537,7 +577,10 @@ function screenHome() {
   for (const [title, gender, note] of [['Первенство', 'boys', 'Юноши и девушки'], ['Чемпионат', 'men', 'Мужчины и женщины']]) {
     const count = S.data.divisions.filter(d => d.competition.includes(title)).length;
     const box = el('div', 'stat');
-    box.append(el('b', null, String(count)), el('span', null, 'дивизионов'));
+    const head = el('div', 'stathead');
+    head.append(icon('calendar'), el('b', null, String(count)));
+    box.append(head);
+    box.append(el('span', null, 'дивизионов'));
     box.append(el('div', 'small muted', note));
     box.addEventListener('click', () => { S.gender = gender; location.hash = '#/divisions'; render(); });
     competitions.append(box);
@@ -547,6 +590,9 @@ function screenHome() {
   wrap.append(el('h2', 'section', 'Залы'));
   const venueCard = el('div', 'card');
   const venueRow = el('div', 'row');
+  const pin = el('div', 'roundicon');
+  pin.append(icon('pin'));
+  venueRow.append(pin);
   const venueText = el('div', 'grow');
   venueText.append(el('div', 'strong', 'Адреса игр'));
   venueText.append(el('div', 'small muted', venuesWord(venues.size) + ' · расписание по каждому'));
@@ -760,9 +806,7 @@ function screenTeam(teamId) {
   info.append(el('h3', null, team.name));
   info.append(el('div', 'muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
   profile.append(info);
-  const star = el('button', 'star' + (isFavTeam(team.id) ? ' on' : ''), isFavTeam(team.id) ? '★' : '☆');
-  star.addEventListener('click', () => toggleFavTeam(team.id));
-  profile.append(star);
+  profile.append(starButton(isFavTeam(team.id), () => toggleFavTeam(team.id)));
   wrap.append(profile);
 
   const players = S.data.players.filter(p => p.teamId === team.id);
@@ -773,18 +817,16 @@ function screenTeam(teamId) {
     card.append(el('div', 'small muted', 'Федерация заполняет составы постепенно — они появляются на pitervolley.ru.'));
     wrap.append(card);
   }
-  const grid = el('div', 'card flush');
+  const grid = el('div', 'players');
   for (const player of players) {
     const key = S.playerPerson.get(player.id);
     const person = S.persons.get(key);
-    const row = el('div', 'row pad');
-    row.append(personAvatar(person || player));
-    const text = el('div', 'grow');
-    text.append(el('div', null, player.name));
-    if (player.birthYear) text.append(el('div', 'small muted', `${player.birthYear} г.р.`));
-    row.append(text, chevron());
-    row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}`; });
-    grid.append(row);
+    const card = el('div', 'player');
+    card.append(personAvatar(person || player));
+    card.append(el('div', 'playername', player.name));
+    if (player.birthYear) card.append(el('div', 'small muted', `${player.birthYear} г.р.`));
+    card.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}`; });
+    grid.append(card);
   }
   wrap.append(grid);
 
@@ -808,9 +850,7 @@ function screenPlayer(key) {
   info.append(el('h3', null, person.name));
   if (person.birthYear) info.append(el('div', 'muted', `${person.birthYear} г.р.`));
   profile.append(info);
-  const star = el('button', 'star' + (isFavPerson(key) ? ' on' : ''), isFavPerson(key) ? '★' : '☆');
-  star.addEventListener('click', () => toggleFavPerson(key));
-  profile.append(star);
+  profile.append(starButton(isFavPerson(key), () => toggleFavPerson(key)));
   wrap.append(profile);
 
   if (person.teams.length) {
@@ -897,46 +937,147 @@ function screenGame(divisionId, gameId) {
 
 function screenCalendar() {
   const wrap = document.createDocumentFragment();
+
+  const toolbar = el('div', 'toolbar');
+  const todayBtn = el('button', 'chip', 'Сегодня');
+  todayBtn.addEventListener('click', () => {
+    const now = new Date();
+    S.calMonth = monthKey(now);
+    S.calDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    S.calMode = 'month';
+    render();
+  });
+  toolbar.append(el('div', 'grow'), todayBtn,
+    iconButton('list', () => { S.calMode = 'list'; render(); }),
+    iconButton('calendar', () => { S.calMode = 'month'; if (!S.calMonth) S.calMonth = monthKey(new Date()); render(); }));
+  wrap.append(toolbar);
+
   const genders = [['all', 'Все'], ['fav', 'Мои'], ['boys', 'Юноши'], ['girls', 'Девушки'], ['men', 'Мужчины'], ['women', 'Женщины']];
   const chips = el('div', 'chips');
   for (const [value, label] of genders) {
     const chip = el('button', 'chip' + (S.gender === value ? ' on' : ''), label);
-    chip.addEventListener('click', () => { S.gender = value; S.year = 0; render(); });
+    chip.addEventListener('click', () => { S.gender = value; S.year = 0; S.calDivision = 0; render(); });
     chips.append(chip);
   }
   wrap.append(chips);
 
+  let divisionFilter = () => true;
+  if (S.gender === 'boys' || S.gender === 'girls' || S.gender === 'men' || S.gender === 'women') {
+    const list = S.data.divisions
+      .filter(d => d.gender === S.gender)
+      .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+    if (list.length) {
+      const row = el('div', 'chips');
+      const all = el('button', 'chip' + (S.calDivision === 0 ? ' on' : ''), 'Все');
+      all.addEventListener('click', () => { S.calDivision = 0; render(); });
+      row.append(all);
+      for (const division of list) {
+        const chip = el('button', 'chip' + (S.calDivision === division.id ? ' on' : ''), division.birthYear ? String(division.birthYear) : `${division.teamLabel}-я`);
+        chip.addEventListener('click', () => { S.calDivision = division.id; render(); });
+        row.append(chip);
+      }
+      wrap.append(row);
+      if (S.calDivision) divisionFilter = game => game.divisionId === S.calDivision;
+    }
+  }
+
   const tracked = trackedTeamIds();
-  const filterGame = game => {
+  const byGender = game => {
     if (S.gender === 'fav') return tracked.has(game.homeId) || tracked.has(game.awayId);
     if (S.gender === 'all') return true;
     const division = S.divisions.get(game.divisionId);
     return division && division.gender === S.gender;
   };
+  const games = S.data.games.filter(game => byGender(game) && divisionFilter(game));
 
-  const games = S.data.games.filter(filterGame);
   const byDate = new Map();
   for (const game of games) {
     if (!game.date) continue;
     if (!byDate.has(game.date)) byDate.set(game.date, []);
     byDate.get(game.date).push(game);
   }
-  const dates = [...byDate.keys()].sort();
+  for (const list of byDate.values()) list.sort(sortGames);
+
   const undated = games.filter(g => !g.date).sort((a, b) => a.divisionId - b.divisionId);
 
-  const future = dates.filter(d => d >= todayIso());
-  const start = future.length ? future[0] : dates[dates.length - 1];
-
-  if (!dates.length && !undated.length) wrap.append(el('div', 'empty', 'По выбранным фильтрам игр нет'));
-  for (const date of dates.filter(d => d >= start)) {
-    wrap.append(el('h2', 'section', fullDate(date)));
-    for (const game of byDate.get(date).sort(sortGames)) {
-      wrap.append(gameCard(game, { hideDate: true }));
+  if (S.calMode === 'month') {
+    wrap.append(renderMonth(byDate));
+  } else {
+    const dates = [...byDate.keys()].sort();
+    if (!dates.length && !undated.length) wrap.append(el('div', 'empty', 'По выбранным фильтрам игр нет'));
+    const future = dates.filter(d => d >= todayIso());
+    const startDate = future.length ? future[0] : dates[dates.length - 1];
+    for (const date of dates.filter(d => d >= startDate)) {
+      wrap.append(el('h2', 'section', fullDate(date)));
+      for (const game of byDate.get(date)) wrap.append(gameCard(game, { hideDate: true }));
     }
   }
+
   if (undated.length) {
     wrap.append(el('h2', 'section', `Дата не назначена · ${undated.length}`));
     for (const game of undated) wrap.append(gameCard(game));
+  }
+  return wrap;
+}
+
+function renderMonth(byDate) {
+  const wrap = document.createDocumentFragment();
+  const key = S.calMonth || monthKey(new Date());
+  const [year, month] = key.split('-').map(Number);
+
+  const head = el('div', 'monthhead');
+  const prev = iconButton('list', () => {});
+  prev.remove();
+  const prevBtn = el('button', 'chip', '‹');
+  prevBtn.addEventListener('click', () => {
+    const d = new Date(year, month - 2, 1);
+    S.calMonth = monthKey(d);
+    S.calDay = null;
+    render();
+  });
+  const nextBtn = el('button', 'chip', '›');
+  nextBtn.addEventListener('click', () => {
+    const d = new Date(year, month, 1);
+    S.calMonth = monthKey(d);
+    S.calDay = null;
+    render();
+  });
+  const monthNames = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  head.append(prevBtn, el('div', 'grow center strong', `${monthNames[month - 1]} ${year}`), nextBtn);
+  wrap.append(head);
+
+  const weekdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  const week = el('div', 'week');
+  for (const name of weekdays) week.append(el('div', 'wd', name));
+  wrap.append(week);
+
+  const first = new Date(year, month - 1, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const days = new Date(year, month, 0).getDate();
+  const selected = S.calDay || (todayIso().startsWith(key) ? todayIso() : null);
+  const grid = el('div', 'month');
+  for (let i = 0; i < offset; i++) grid.append(el('div', 'cell empty'));
+  for (let day = 1; day <= days; day++) {
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const cell = el('button', 'cell' + (byDate.has(iso) ? ' has' : '') + (selected === iso ? ' sel' : ''));
+    cell.append(el('span', null, String(day)));
+    if (byDate.has(iso)) cell.append(el('i', 'dot'));
+    cell.addEventListener('click', () => {
+      S.calDay = iso;
+      S.calMonth = iso.slice(0, 7);
+      render();
+    });
+    grid.append(cell);
+  }
+  wrap.append(grid);
+
+  if (selected) {
+    wrap.append(el('h2', 'section', fullDate(selected)));
+    const list = byDate.get(selected) || [];
+    if (!list.length) wrap.append(el('div', 'empty', 'В этот день игр нет'));
+    for (const game of list) wrap.append(gameCard(game, { hideDate: true }));
+  } else {
+    wrap.append(el('div', 'empty', 'Выберите день с отметкой'));
   }
   return wrap;
 }
@@ -1211,6 +1352,8 @@ function render() {
     if (game) title = `${game.home} — ${game.away}`;
     back = true;
   } else if (route === 'calendar') {
+    if (parts[1] === 'month') S.calMode = 'month';
+    if (parts[1] === 'list') S.calMode = 'list';
     content = screenCalendar();
   } else if (route === 'venues') {
     content = screenVenues();
