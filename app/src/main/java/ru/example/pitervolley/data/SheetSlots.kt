@@ -222,6 +222,8 @@ object SheetSlots {
             game.time = ""
             game.slotNum = slot.num
             game.dateSource = "sheet"
+            game.refs = slot.refs.filter { it.isNotBlank() }
+            game.comment = slot.comment
             return hadDate
         }
         game.date = slot.date
@@ -229,9 +231,10 @@ object SheetSlots {
         if (slot.venue.isNotBlank()) game.venue = slot.venue
         game.slotNum = slot.num
         game.dateSource = "sheet"
+        game.refs = slot.refs.filter { it.isNotBlank() }
+        game.comment = slot.comment
         return true
     }
-
     /** Минимальный RFC4180 reader. */
     fun parseCsv(text: String): List<List<String>> {
         val rows = ArrayList<List<String>>()

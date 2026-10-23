@@ -77,6 +77,10 @@ data class Game(
     val sets: List<List<Int>> = emptyList(),
     var slotNum: Int? = null,
     var dateSource: String? = null,
+    /** Судьи из расписания федерации. */
+    var refs: List<String> = emptyList(),
+    /** Комментарий федерации к игре (например, кто играет первым). */
+    var comment: String = "",
 ) {
     val hasResult: Boolean get() = score.isNotBlank()
     val homeSets: Int get() = sets.count { it.size > 1 && it[0] > it[1] }

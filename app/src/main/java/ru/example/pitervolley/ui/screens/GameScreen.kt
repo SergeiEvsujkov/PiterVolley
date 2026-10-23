@@ -77,6 +77,36 @@ fun GameScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            if (game.refs.isNotEmpty() || game.comment.isNotBlank()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        if (game.refs.isNotEmpty()) {
+                            Text(
+                                "Судьи",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(game.refs.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (game.comment.isNotBlank()) {
+                            if (game.refs.isNotEmpty()) Spacer(Modifier.height(10.dp))
+                            Text(
+                                "Комментарий",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(game.comment, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = game.home,

@@ -230,7 +230,7 @@ fun HomeScreen(
                 }
 
                 if (favoriteGames.isNotEmpty()) {
-                    item { SectionTitle("Их игры") }
+                    item { SectionTitle("Их ближайшие игры") }
                     items(favoriteGames, key = { "fg-${it.divisionId}-${it.id}" }) { game ->
                         GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
                     }

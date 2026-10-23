@@ -345,6 +345,8 @@ def match_slots(slots, games, divisions):
                 g["time"] = s["time"]
             if s["venue"]:
                 g["venue"] = s["venue"]
+            g["refs"] = [r for r in (s.get("refs") or []) if r]
+            g["comment"] = s.get("comment") or ""
             g["dateSource"] = "sheet"
             date_filled += 1
     return matched, date_filled
