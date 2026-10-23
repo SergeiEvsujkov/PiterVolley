@@ -852,11 +852,11 @@ function screenDivisions() {
   if (S.gender === 'boys' || S.gender === 'girls') {
     const years = [...new Set(list.map(d => d.birthYear))].filter(Boolean);
     const yearChips = el('div', 'chips');
-    const all = el('button', 'chip' + (S.year === 0 ? ' on' : ''), 'Все');
+    const all = el('button', 'chip alt' + (S.year === 0 ? ' on' : ''), 'Все годы');
     all.addEventListener('click', () => { S.year = 0; render(); });
     yearChips.append(all);
     for (const year of years) {
-      const chip = el('button', 'chip' + (S.year === year ? ' on' : ''), String(year));
+      const chip = el('button', 'chip alt' + (S.year === year ? ' on' : ''), String(year));
       chip.addEventListener('click', () => { S.year = year; render(); });
       yearChips.append(chip);
     }
@@ -1731,6 +1731,7 @@ function render() {
     content = screenHome();
   } else if (route === 'divisions') {
     content = screenDivisions();
+    subtitle = `Сезон ${S.data.season}`;
   } else if (route === 'division') {
     const division = S.divisions.get(parts[1]);
     content = screenDivision(parts[1], parts[2]);
