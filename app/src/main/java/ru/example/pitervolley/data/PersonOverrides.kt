@@ -29,10 +29,6 @@ object PersonOverrides {
     fun isSplit(playerId: String): Boolean =
         ::prefs.isInitialized && prefs.getStringSet(KEY_SPLIT, emptySet())?.contains(playerId) == true
 
-    fun splitIds(): Set<String> =
-        if (!::prefs.isInitialized) emptySet()
-        else prefs.getStringSet(KEY_SPLIT, emptySet())?.toSet().orEmpty()
-
     fun split(playerId: String) {
         val current = prefs.getStringSet(KEY_SPLIT, emptySet()).orEmpty().toMutableSet()
         if (!current.add(playerId)) return

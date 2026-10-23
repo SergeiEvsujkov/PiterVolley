@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import ru.example.pitervolley.data.Backup
 import ru.example.pitervolley.data.PersonOverrides
 import ru.example.pitervolley.data.ReminderSettings
 import ru.example.pitervolley.data.Repo
@@ -44,22 +43,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     var version by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val reminders by ReminderSettings.state.collectAsState()
-    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri != null) {
-            val ok = runCatching {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(Backup.build().toByteArray(Charsets.UTF_8))
-                } != null
-            }.getOrDefault(false)
-            android.widget.Toast.makeText(
-                context,
-                if (ok) "Файл сохранён" else "Не удалось сохранить файл",
-                android.widget.Toast.LENGTH_SHORT,
-            ).show()
-        }
-    }
     val splitCount = remember(version) { PersonOverrides.splitCount() }
     val mergeCount = remember(version) { PersonOverrides.mergeCount() }
     val persons = remember(version) { Repo.personCount() }
@@ -177,34 +160,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-            }
-
-            // ---------------------------------------------------------- экспорт
-            SectionTitle("Экспорт настроек")
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        "Избранное, ручные правки игроков и настройки напоминаний хранятся " +
-                            "только на этом устройстве. Сохраните их в файл, чтобы не потерять " +
-                            "при очистке данных или перенести на другой телефон.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    androidx.compose.material3.FilledTonalButton(
-                        onClick = { exportLauncher.launch(Backup.suggestedFileName()) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Сохранить файл")
-                    }
                 }
             }
 
