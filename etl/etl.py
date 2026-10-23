@@ -97,6 +97,62 @@ def norm_venue(s):
     return s.strip().strip(",")
 
 
+STREET_TYPES = ("улица", "улиц", "проспект", "просп", "переулок", "бульвар", "шоссе",
+                "набережная", "площадь", "проезд", "тупик")
+LEGAL_TYPES = {"дом": "д", "строение": "стр", "корпус": "к", "корп": "к", "литера": "лит", "лит": "лит"}
+
+
+def venue_key(raw):
+    """Ключ без улицы/дома/корпуса, регистра и пунктуации — для склейки вариантов."""
+    s = norm_venue(raw or "")
+    if not s:
+        return ""
+    s = re.sub(r"\([^)]*\)", " ", s)          # примечания вроде «(ФОК)»
+    s = s.lower().replace("ё", "е")
+    s = re.sub(r"[.,«»\"'`]", " ", s)
+    tokens = []
+    i = 0
+    parts = s.split()
+    while i < len(parts):
+        w = parts[i]
+        nxt = parts[i + 1] if i + 1 < len(parts) else ""
+        if w in STREET_TYPES or w in ("ул", "пр", "пер", "б-р", "ш", "наб", "пл"):
+            i += 1
+            continue
+        if w in LEGAL_TYPES:
+            parts[i] = LEGAL_TYPES[w]
+        tokens.append(parts[i])
+        i += 1
+    s = " ".join(tokens)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def canonicalize_venues(games, slots):
+    """Один зал — одно название: выбираем самый частый вариант записи."""
+    counts = {}
+    for g in games:
+        v = g.get("venue") or ""
+        if v:
+            counts.setdefault(venue_key(v), {}).setdefault(v, 0)
+            counts[venue_key(v)][v] += 1
+    best = {}
+    for key, variants in counts.items():
+        best[key] = sorted(variants.items(), key=lambda kv: (-kv[1], -len(kv[0]), kv[0]))[0][0]
+    # «пр. Ветеранов, 133, к.1» и «пр. Ветеранов, д.133» — один зал
+    for alias_key in ("ветеранов д 133", "ветеранов 133 к 1"):
+        best[alias_key] = "пр. Ветеранов, 133, к.1"
+    names = set()
+    for collection in (games, slots):
+        for item in collection:
+            v = item.get("venue") or ""
+            if v:
+                item["venue"] = best.get(venue_key(v), v)
+                if collection is games:
+                    names.add(item["venue"])
+    return len(names)
+
+
 def iso_date(s):
     m = re.match(r"(\d{2})\.(\d{2})\.(\d{4})", s or "")
     return "%s-%s-%s" % (m.group(3), m.group(2), m.group(1)) if m else None
@@ -438,6 +494,7 @@ def main():
         raise SystemExit("no data sources available")
 
     matched, date_filled = match_slots(slots, games, divisions)
+    venue_total = canonicalize_venues(games, slots)
 
     data = {
         "schema": 1,
@@ -449,6 +506,7 @@ def main():
             "games": len(games), "slots": len(slots),
             "gamesWithResult": sum(1 for g in games if g["score"]),
             "gamesWithoutDate": sum(1 for g in games if not g["date"]),
+            "venues": venue_total,
             "slotsMatched": matched,
             "datesFromSheet": date_filled,
         },

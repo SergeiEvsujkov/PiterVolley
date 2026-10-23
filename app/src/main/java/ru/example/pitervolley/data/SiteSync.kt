@@ -164,6 +164,7 @@ object SiteSync {
         if (!siteOk && !sheetOk) throw IllegalStateException("Нет данных ни с сайта, ни из таблицы")
 
         SheetSlots.apply(games, slots, divisions.associateBy { it.id })
+        VenueNormalizer.canonicalize(games)
 
         val knownLogos = previous?.teams?.associate { it.id to it.logo }.orEmpty()
         val teams = teamIds.values.map { it.copy(logo = knownLogos[it.id] ?: it.logo) }

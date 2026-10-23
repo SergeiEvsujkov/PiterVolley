@@ -35,6 +35,56 @@ object VenueNormalizer {
         return s.trim().trimEnd(',')
     }
 
+    private val NOTE = Regex("""\([^)]*\)""")
+    private val TYPE_WORDS = setOf(
+        "ул", "пр", "пер", "б-р", "ш", "наб", "пл",
+        "улица", "проспект", "проезд", "бульвар", "шоссе", "набережная", "площадь",
+    )
+
+    /** Известные варианты одного зала, которые не сходятся автоматически. */
+    private val ALIASES = mapOf(
+        "ветеранов д 133" to "пр. Ветеранов, 133, к.1",
+        "ветеранов 133 к 1" to "пр. Ветеранов, 133, к.1",
+    )
+
+    fun groupKey(raw: String): String {
+        val withoutNotes = key(raw).replace(NOTE, " ")
+        return withoutNotes.split(' ')
+            .filter { it.isNotBlank() && it !in TYPE_WORDS }
+            .joinToString(" ")
+    }
+
+    /** Один зал — одно название: выбираем самый частый вариант записи. */
+    fun canonicalize(games: List<Game>): Int {
+        val variants = HashMap<String, MutableMap<String, Int>>()
+        for (game in games) {
+            val venue = game.venue
+            if (venue.isBlank()) continue
+            val bucket = variants.getOrPut(groupKey(venue)) { HashMap() }
+            bucket[venue] = (bucket[venue] ?: 0) + 1
+        }
+        val best = variants.mapValues { (_, bucket) ->
+            bucket.entries
+                .sortedWith(
+                    compareByDescending<Map.Entry<String, Int>> { it.value }
+                        .thenByDescending { it.key.length }
+                        .thenBy { it.key },
+                )
+                .first().key
+        }.toMutableMap()
+        ALIASES.forEach { (key, value) -> best[key] = value }
+
+        val names = HashSet<String>()
+        for (game in games) {
+            val venue = game.venue
+            if (venue.isBlank()) continue
+            val canonical = best[groupKey(venue)] ?: venue
+            game.venue = canonical
+            names.add(canonical)
+        }
+        return names.size
+    }
+
     /** Ключ для группировки: без учёта регистра и знаков препинания. */
     fun key(raw: String): String =
         normalize(raw)
