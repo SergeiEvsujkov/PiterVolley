@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>VolleyPiter</title>
 <meta name="description" content="Первенство и Чемпионат Санкт-Петербурга по волейболу: календарь, результаты, таблицы, команды и игроки.">
-<meta name="theme-color" content="#f5f7fb">
+<meta name="theme-color" content="#1b4f9c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VolleyPiter">
@@ -16,36 +16,20 @@
 </head>
 <body>
 <header class="topbar" id="topbar">
-  <button class="icon-btn back" id="backBtn" hidden aria-label="Назад">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
+  <button class="back" id="backBtn" hidden aria-label="Назад">Назад</button>
   <div class="titles">
     <h1 id="title">VolleyPiter</h1>
     <p id="subtitle">Волейбол СПб</p>
   </div>
-  <button class="icon-btn" id="searchBtn" aria-label="Поиск">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5L21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  </button>
-  <button class="icon-btn" id="settingsBtn" aria-label="Настройки">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-  </button>
+  <button class="icon-btn" id="searchBtn" aria-label="Поиск">⌕</button>
 </header>
 
-<main id="app" class="screen"><div class="loading"><span class="spinner"></span>Загружаем данные…</div></main>
+<main id="app" class="screen"><div class="empty">Загрузка…</div></main>
 
 <nav class="tabbar" id="tabbar">
-  <a href="#/home" data-tab="home">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>
-    Главная
-  </a>
-  <a href="#/calendar" data-tab="calendar">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 9.5h17M8 3.5V7M16 3.5V7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-    Календарь
-  </a>
-  <a href="#/divisions" data-tab="divisions">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-    Дивизионы
-  </a>
+  <a href="#/home" data-tab="home"><span>⌂</span>Главная</a>
+  <a href="#/calendar" data-tab="calendar"><span>▦</span>Календарь</a>
+  <a href="#/divisions" data-tab="divisions"><span>☰</span>Дивизионы</a>
 </nav>
 
 <div class="offline" id="offline" hidden>Нет сети — показаны сохранённые данные</div>

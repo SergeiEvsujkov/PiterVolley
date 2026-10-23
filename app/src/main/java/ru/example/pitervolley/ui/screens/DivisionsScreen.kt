@@ -23,6 +23,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.example.pitervolley.data.Division
+import ru.example.pitervolley.data.Favorites
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.ui.EmptyState
 import ru.example.pitervolley.ui.GenderChips
@@ -45,8 +47,23 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
     var gender by rememberSaveable { mutableStateOf("boys") }
     var year by rememberSaveable { mutableStateOf(0) }
 
-    val divisions = remember(gender) { Repo.data.divisions.filter { it.gender == gender } }
-    val years = remember(divisions) { divisions.mapNotNull { it.birthYear }.distinct().sorted() }
+    val favoriteTeams by Favorites.teams.collectAsState()
+    val favoritePersons by Favorites.persons.collectAsState()
+    val tracked = remember(favoriteTeams, favoritePersons) { Favorites.trackedTeamIds() }
+    val favoriteDivisionIds = remember(tracked) {
+        Repo.data.teams.filter { it.id in tracked }.map { it.divisionId }.toSet()
+    }
+
+    val divisions = remember(gender, favoriteDivisionIds) {
+        when (gender) {
+            "fav" -> Repo.data.divisions.filter { it.id in favoriteDivisionIds }
+            else -> Repo.data.divisions.filter { it.gender == gender }
+        }
+    }
+    val years = remember(divisions, gender) {
+        if (gender == "boys" || gender == "girls") divisions.mapNotNull { it.birthYear }.distinct().sorted()
+        else emptyList()
+    }
     val shown = remember(gender, year, divisions) {
         divisions.filter { year == 0 || it.birthYear == year }
             .sortedWith(compareBy({ it.birthYear ?: 0 }, { it.teamLabel ?: 0 }))
@@ -61,6 +78,7 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
                 selected = gender,
                 onSelect = { gender = it; year = 0 },
                 includeAll = false,
+                includeFavorites = true,
                 modifier = Modifier.padding(vertical = 6.dp),
             )
             if (years.isNotEmpty()) {
@@ -95,7 +113,10 @@ fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
             }
 
             if (shown.isEmpty()) {
-                EmptyState("Дивизионов нет")
+                EmptyState(
+                    if (gender == "fav") "Пока ничего не выбрано. Добавьте команду или игрока звёздочкой — их дивизионы появятся здесь."
+                    else "Дивизионов нет",
+                )
             } else {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                     items(shown, key = { it.id }) { division ->
