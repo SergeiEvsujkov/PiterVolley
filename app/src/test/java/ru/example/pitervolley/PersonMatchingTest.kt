@@ -27,6 +27,26 @@ class PersonMatchingTest {
     }
 
     @Test
+    fun `key treats i and short i as the same letter`() {
+        assertEquals(Repo.personKey("Сергей Иванов", 2010), Repo.personKey("Сергеи Иванов", 2010))
+        assertEquals(Repo.personKey("Андрей", 2010), Repo.personKey("АНДРЕИ", 2010))
+    }
+
+    @Test
+    fun `records with e yo and i short i variants are merged`() {
+        val t1 = Team("t1", "Команда-1", 1)
+        val t2 = Team("t2", "Команда-2", 1)
+        setup(
+            listOf(
+                Player("p1", "Сергей Пётр", 2010, null, "t1", 1),
+                Player("p2", "СЕРГЕИ ПЕТР", 2010, null, "t2", 1),
+            ),
+            listOf(t1, t2),
+        )
+        assertEquals(1, Repo.personCount())
+    }
+
+    @Test
     fun `same person in two teams is one person with two teams`() {
         val t1 = Team("t1", "Команда-1", 1)
         val t2 = Team("t2", "Команда-2", 1)
