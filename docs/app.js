@@ -679,9 +679,9 @@ function screenHome() {
   const updated = el('div', 'card tight');
   const updatedRow = el('div', 'row');
   const updatedText = el('div', 'grow');
-  updatedText.append(el('div', 'small muted', 'Данные на'));
-  updatedText.append(el('div', 'strong', dataFreshnessText()));
-  updatedText.append(el('div', 'small muted', `${checkedText()} · ${sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru'}`));
+  updatedText.append(el('div', 'small muted', `Данные на ${shortMoment(S.data.generatedAt) || '—'}`));
+  updatedText.append(el('div', 'strong', shortAge(S.data.generatedAt) || 'ещё не загружены'));
+  updatedText.append(el('div', 'small muted', `${shortChecked()} · ${sheetUsed() ? 'сайт + таблица' : 'сайт'}`));
   updatedRow.append(updatedText);
   const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
   refresh.addEventListener('click', () => refreshAll(refresh));
@@ -1587,6 +1587,34 @@ function screenSettings() {
   wrap.append(about);
 
   return wrap;
+}
+
+function shortMoment(source) {
+  if (!source) return null;
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return null;
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} в ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function shortAge(source) {
+  if (!source) return '';
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return '';
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return 'только что';
+  if (minutes < 60) return `${minutes} мин назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ч назад`;
+  const days = Math.floor(hours / 24);
+  return `${days} дн назад`;
+}
+
+function shortChecked() {
+  const source = localStorage.getItem('vp.lastSync');
+  const date = source ? new Date(source) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'не проверяли';
+  return `проверено в ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 function formatMoment(source) {
