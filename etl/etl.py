@@ -356,38 +356,62 @@ def match_slots(slots, games, divisions):
 
 # ---------------------------------------------------------------- main
 
+def load_previous():
+    path = os.path.join(os.path.dirname(HERE), "docs", "data.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        log("previous data unavailable:", e)
+        return None
+
+
 def main():
     t0 = time.time()
     divisions, games = [], []
     teams, team_ids = [], set()
-
-    for tid in range(1, 19):
-        html = fetch("%s/table?tid=%d" % (SITE, tid), "table-%d.html" % tid)
-        div, dgames = parse_division(tid, html)
-        divisions.append(div)
-        games.extend(dgames)
-        for sid, sname in re.findall(TEAM_LINK, html):
-            if sid not in team_ids:
-                team_ids.add(sid)
-                teams.append({"id": sid, "name": strip_tags(sname), "divisionId": tid, "logo": None})
-        log("tid=%-2d %-45s games=%d" % (tid, div["title"][:45], len(dgames)))
-
     players = []
-    for i, t in enumerate(teams, 1):
-        html = fetch("%s/team?team=%s" % (SITE, t["id"]), "team-%s.html" % t["id"])
-        logo, tplayers = parse_team_page(html)
-        t["logo"] = logo
-        for p in tplayers:
-            p["teamId"] = t["id"]
-            p["divisionId"] = t["divisionId"]
-        players.extend(tplayers)
-        if i % 25 == 0:
-            log("teams %d/%d, players %d" % (i, len(teams), len(players)))
+    sources = {"site": False, "sheet": False}
+
+    try:
+        for tid in range(1, 19):
+            html = fetch("%s/table?tid=%d" % (SITE, tid), "table-%d.html" % tid)
+            div, dgames = parse_division(tid, html)
+            divisions.append(div)
+            games.extend(dgames)
+            for sid, sname in re.findall(TEAM_LINK, html):
+                if sid not in team_ids:
+                    team_ids.add(sid)
+                    teams.append({"id": sid, "name": strip_tags(sname), "divisionId": tid, "logo": None})
+            log("tid=%-2d %-45s games=%d" % (tid, div["title"][:45], len(dgames)))
+
+        for i, t in enumerate(teams, 1):
+            html = fetch("%s/team?team=%s" % (SITE, t["id"]), "team-%s.html" % t["id"])
+            logo, tplayers = parse_team_page(html)
+            t["logo"] = logo
+            for p in tplayers:
+                p["teamId"] = t["id"]
+                p["divisionId"] = t["divisionId"]
+            players.extend(tplayers)
+            if i % 25 == 0:
+                log("teams %d/%d, players %d" % (i, len(teams), len(players)))
+
+        sources["site"] = True
+    except Exception as e:
+        log("site failed:", e)
+        prev = load_previous()
+        if not prev:
+            raise
+        divisions = prev.get("divisions", [])
+        teams = prev.get("teams", [])
+        players = prev.get("players", [])
+        games = [dict(g) for g in prev.get("games", [])]
+        log("using previous site data:", len(games), "games")
 
     names = {t["id"]: t["name"] for t in teams}
     for g in games:
-        g["home"] = names.get(g["homeId"], g["homeName"])
-        g["away"] = names.get(g["awayId"], g["awayName"])
+        g["home"] = names.get(g["homeId"], g.get("home") or g.get("homeName") or "")
+        g["away"] = names.get(g["awayId"], g.get("away") or g.get("awayName") or "")
         g.pop("homeName", None)
         g.pop("awayName", None)
 
@@ -396,8 +420,14 @@ def main():
         xls = fetch("https://docs.google.com/spreadsheets/d/%s/export?format=xlsx" % SHEET_ID,
                     "sheet.xlsx", binary=True)
         slots = parse_sheet(xls)
+        sources["sheet"] = bool(slots)
+        if not slots:
+            log("sheet returned no rows")
     except Exception as e:
         log("sheet failed:", e)
+
+    if not sources["site"] and not sources["sheet"]:
+        raise SystemExit("no data sources available")
 
     matched, date_filled = match_slots(slots, games, divisions)
 
@@ -405,6 +435,7 @@ def main():
         "schema": 1,
         "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "season": "2026-27",
+        "sources": sources,
         "counts": {
             "divisions": len(divisions), "teams": len(teams), "players": len(players),
             "games": len(games), "slots": len(slots),
@@ -421,6 +452,7 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     log("wrote %s (%.1f KB) in %.1fs" % (out, os.path.getsize(out) / 1024.0, time.time() - t0))
+    log("sources:", json.dumps(sources, ensure_ascii=False))
     log("counts:", json.dumps(data["counts"], ensure_ascii=False))
 
 

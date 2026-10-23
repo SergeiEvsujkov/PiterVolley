@@ -15,6 +15,15 @@ data class Dataset(
     val players: List<Player> = emptyList(),
     val games: List<Game> = emptyList(),
     val slots: List<Slot> = emptyList(),
+    /** Какие источники собрал ETL при публикации данных (новые файлы). */
+    val sources: Sources? = null,
+)
+
+/** Какие источники удалось собрать ETL при последней публикации данных. */
+@Serializable
+data class Sources(
+    val site: Boolean = false,
+    val sheet: Boolean = false,
 )
 
 @Serializable

@@ -180,13 +180,25 @@ object SiteSync {
         }
     }
 
-    fun lastSourceText(context: Context): String? = when (lastSource(context)) {
-        Source.GITHUB -> "Данные: volleypiter.github.io"
-        Source.BOTH -> "Данные: pitervolley.ru + volleyreferee.spb.ru"
-        Source.SITE_ONLY -> "Данные: только pitervolley.ru — расписание недоступно"
-        Source.SHEET_ONLY -> "Данные: только volleyreferee.spb.ru — сайт недоступен"
-        Source.FAILED -> "Данные: обновление не удалось"
-        Source.NONE -> null
+    fun lastSourceText(context: Context): String? {
+        // Показываем, какие источники собрал ETL при публикации данных.
+        val sources = if (Repo.isLoaded) Repo.data.sources else null
+        if (sources != null) {
+            return when {
+                sources.site && sources.sheet -> "Данные: pitervolley.ru + volleyreferee.spb.ru"
+                sources.site -> "Данные: только pitervolley.ru — расписание недоступно"
+                sources.sheet -> "Данные: только volleyreferee.spb.ru — сайт недоступен"
+                else -> "Данные: источники недоступны"
+            }
+        }
+        return when (lastSource(context)) {
+            Source.GITHUB -> "Данные: volleypiter.github.io"
+            Source.BOTH -> "Данные: pitervolley.ru + volleyreferee.spb.ru"
+            Source.SITE_ONLY -> "Данные: только pitervolley.ru — расписание недоступно"
+            Source.SHEET_ONLY -> "Данные: только volleyreferee.spb.ru — сайт недоступен"
+            Source.FAILED -> "Данные: обновление не удалось"
+            Source.NONE -> null
+        }
     }
 
     private fun fetchDataset(): Dataset {

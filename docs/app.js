@@ -1503,7 +1503,7 @@ function screenSettings() {
   const source = el('div', 'row pad');
   const sourceText = el('div', 'grow');
   sourceText.append(el('div', 'strong', 'Источник'));
-  sourceText.append(el('div', 'small muted', sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru'));
+  sourceText.append(el('div', 'small muted', sourceLabel()));
   source.append(sourceText);
   dataGroup.append(source);
 
@@ -1657,6 +1657,17 @@ function generatedText() {
   if (Number.isNaN(d.getTime())) return 'ещё не обновляли';
   const pad = value => String(value).padStart(2, '0');
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function sourceLabel() {
+  const sources = S.data.sources;
+  if (sources) {
+    if (sources.site && sources.sheet) return 'pitervolley.ru + volleyreferee.spb.ru';
+    if (sources.site) return 'только pitervolley.ru — расписание недоступно';
+    if (sources.sheet) return 'только volleyreferee.spb.ru — сайт недоступен';
+    return 'источники недоступны';
+  }
+  return sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru';
 }
 
 function sheetUsed() {
