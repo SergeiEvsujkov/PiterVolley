@@ -132,6 +132,10 @@ object SheetSlots {
                 }
             }
         }
+        // «Сборная СПб» и «Сборная» — одна команда
+        s = s.split(' ')
+            .filter { it.isNotBlank() && it != "спб" && it != "санкт-петербург" && it != "санкт" && it != "петербург" }
+            .joinToString(" ")
         return s
     }
 

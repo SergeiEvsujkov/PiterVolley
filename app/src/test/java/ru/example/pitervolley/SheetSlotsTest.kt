@@ -83,6 +83,14 @@ class SheetSlotsTest {
     }
 
     @Test
+    fun `combined team name matches without city suffix`() {
+        assertEquals(
+            SheetSlots.pairKey("Сборная", "Невская"),
+            SheetSlots.pairKey("Сборная СПб", "Невская"),
+        )
+    }
+
+    @Test
     fun `club prefixes do not break matching`() {
         assertEquals(
             SheetSlots.pairKey("Экран", "Клуб"),

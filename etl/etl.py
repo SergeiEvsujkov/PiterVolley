@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-PiterVolley ETL: pitervolley.ru + Google Sheet -> normalized JSON.
+VolleyPiter ETL: pitervolley.ru + Google Sheet -> normalized JSON.
 
 Usage:
     python etl.py            # parse cached pages, download what is missing
@@ -23,7 +23,7 @@ RAW = os.path.join(HERE, "raw")
 OUT = os.path.join(HERE, "out")
 SITE = "https://pitervolley.ru"
 SHEET_ID = "1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4"
-UA = {"User-Agent": "PiterVolleyApp/0.1 (+data sync)"}
+UA = {"User-Agent": "VolleyPiter/0.1 (+data sync)"}
 DELAY = 0.35
 
 os.makedirs(RAW, exist_ok=True)
@@ -282,6 +282,8 @@ def alias(n):
             if s.startswith(p):
                 s = s[len(p):]
                 changed = True
+    # «Сборная СПб» и «Сборная» — одна команда
+    s = " ".join(w for w in s.split() if w and w not in ("спб", "санкт-петербург", "санкт", "петербург"))
     return s
 
 
