@@ -187,30 +187,79 @@ def parse_team_page(html):
 
 # ---------------------------------------------------------------- google sheet
 
+STEP_MINUTES = 75
+
+
+def _parse_time(v):
+    if isinstance(v, datetime.time):
+        return "%02d:%02d" % (v.hour, v.minute)
+    if isinstance(v, datetime.datetime):
+        return v.strftime("%H:%M")
+    s = str(v or "").strip().replace(".", ":")
+    m = re.match(r"^(\d{1,2}):(\d{2})", s)
+    return "%02d:%02d" % (int(m.group(1)), int(m.group(2))) if m else ""
+
+
+def _add_minutes(hhmm, minutes):
+    m = re.match(r"^(\d{1,2}):(\d{2})$", hhmm or "")
+    if not m:
+        return hhmm
+    total = int(m.group(1)) * 60 + int(m.group(2)) + minutes
+    return "%02d:%02d" % ((total // 60) % 24, total % 60)
+
+
+def _iso_date(v):
+    if isinstance(v, datetime.datetime):
+        return v.date().isoformat()
+    if isinstance(v, datetime.date):
+        return v.isoformat()
+    s = str(v or "")
+    m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", s)
+    return "%s-%s-%s" % (m.group(3), m.group(2), m.group(1)) if m else None
+
+
 def parse_sheet(xls_bytes):
+    """Одна строка листа — несколько игр: «Игр» + список возрастов, время +1:15."""
     import openpyxl
     wb = openpyxl.load_workbook(io.BytesIO(xls_bytes), data_only=True)
     ws = wb["Назначения"] if "Назначения" in wb.sheetnames else wb.worksheets[0]
     slots = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
+    for cells in ws.iter_rows(min_row=2):
+        row = [c.value for c in cells]
         if not row or row[1] is None:
             continue
-        date = row[1]
-        date = date.date().isoformat() if isinstance(date, datetime.datetime) else str(date)[:10]
-        tm = row[3]
-        tm = tm.strftime("%H:%M") if isinstance(tm, (datetime.time, datetime.datetime)) else str(tm or "")[:5]
-        ages = [int(a) for a in re.split(r"[.,]", str(row[12] or "")) if a.strip().isdigit()]
-        slots.append({
-            "num": int(row[0]) if isinstance(row[0], (int, float)) else None,
-            "date": date, "time": tm,
-            "group": str(row[4] or "").strip(),
-            "home": str(row[5] or "").strip(), "away": str(row[7] or "").strip(),
-            "venue": norm_venue(str(row[8] or "")),
-            "games": int(row[9]) if isinstance(row[9], (int, float)) else 1,
-            "refs": [str(row[10] or "").strip(), str(row[11] or "").strip()],
-            "ages": ages,
-            "comment": str(row[13] or "").strip(),
-        })
+        num = row[0]
+        struck = any(c.font is not None and c.font.strike for c in cells)
+        if struck or (isinstance(num, str) and num.strip().startswith("!")):
+            continue  # отменено или перенесено
+        raw = row[1]
+        nodate = isinstance(raw, str) and "залож" in raw.lower()
+        date = None if nodate else _iso_date(raw)
+        if not nodate and not date:
+            continue
+        base = _parse_time(row[3])
+        games = row[9] if isinstance(row[9], (int, float)) else 1
+        games = max(1, min(8, int(games)))
+        ages = [int(a) for a in re.split(r"[.,/]", str(row[12] or "")) if a.strip().isdigit()]
+        ages = [a for a in ages if 1990 <= a <= 2030]
+        comment = str(row[13] or "").strip()
+        labels = list(range(2, max(2, games) + 1)) + [1] if "2 команд" in comment.lower() else list(range(1, games + 1))
+        for i in range(games):
+            slots.append({
+                "num": int(num) if isinstance(num, (int, float)) else None,
+                "date": date or "",
+                "time": _add_minutes(base, STEP_MINUTES * i) if base else "",
+                "group": str(row[4] or "").strip(),
+                "home": str(row[5] or "").strip(),
+                "away": str(row[7] or "").strip(),
+                "venue": norm_venue(str(row[8] or "")),
+                "games": 1,
+                "refs": [str(row[10] or "").strip(), str(row[11] or "").strip()],
+                "ages": [ages[i]] if i < len(ages) else [],
+                "year": ages[i] if i < len(ages) else None,
+                "label": labels[i] if not ages else None,
+                "comment": comment,
+            })
     return slots
 
 
@@ -233,48 +282,67 @@ def alias(n):
     return s
 
 
-def ratio(a, b):
-    return difflib.SequenceMatcher(None, a, b).ratio()
+def _pair(a, b):
+    return tuple(sorted((alias(a), alias(b))))
 
 
-def name_score(g, s):
-    a1, a2 = alias(g["home"]), alias(g["away"])
-    b1, b2 = alias(s["home"]), alias(s["away"])
-    return max(min(ratio(a1, b1), ratio(a2, b2)), min(ratio(a1, b2), ratio(a2, b1)))
+def _slot_key(s):
+    if s.get("year"):
+        return (_pair(s["home"], s["away"]), "y", s["year"])
+    if s.get("label"):
+        return (_pair(s["home"], s["away"]), "l", s["label"])
+    return (_pair(s["home"], s["away"]), "*", None)
+
+
+def _game_key(g, d):
+    if d.get("birthYear"):
+        return (_pair(g["home"], g["away"]), "y", d["birthYear"])
+    if d.get("teamLabel"):
+        return (_pair(g["home"], g["away"]), "l", d["teamLabel"])
+    return (_pair(g["home"], g["away"]), "*", None)
 
 
 def match_slots(slots, games, divisions):
+    """Таблица главнее сайта: слоты раздаются играм парами по порядку дат."""
     div_by_id = {d["id"]: d for d in divisions}
-    matched = date_filled = 0
+    by_key = {}
     for s in slots:
-        gender = GENDER_MAP.get(s["group"])
-        best, best_r = None, 0.0
-        for g in games:
-            d = div_by_id[g["divisionId"]]
-            if gender and d["gender"] != gender:
-                continue
-            if s["ages"] and d["birthYear"] and d["birthYear"] not in s["ages"]:
-                continue
-            if g["date"] and s["date"] and g["date"] != s["date"]:
-                continue
-            r = name_score(g, s)
-            if r < 0.80:
-                continue
-            if r > best_r or (r == best_r and best is not None and best["date"] and not g["date"]):
-                best, best_r = g, r
-        if best is None:
+        by_key.setdefault(_slot_key(s), []).append(s)
+    for v in by_key.values():
+        v.sort(key=lambda s: (s.get("date") or "", s.get("time") or "", s.get("num") or 0))
+
+    groups = {}
+    for g in games:
+        if g.get("score"):
+            continue  # сыгранные матчи не трогаем
+        d = div_by_id.get(g["divisionId"])
+        if not d:
             continue
-        matched += 1
-        s["gameIds"] = [best["id"]]
-        s["divisionId"] = best["divisionId"]
-        best["slotNum"] = s["num"]
-        if not best["date"] and s["date"]:
-            best["date"] = s["date"]
-            best["time"] = s["time"]
-            best["dateSource"] = "sheet"
+        groups.setdefault(_game_key(g, d), []).append(g)
+
+    matched = date_filled = 0
+    for key, gs in groups.items():
+        ss = by_key.get(key) or []
+        gs.sort(key=lambda g: (g.get("date") or "9999-12-31", g.get("round") or 0, g["id"]))
+        for s, g in zip(ss, gs):
+            matched += 1
+            s["gameIds"] = [g["id"]]
+            s["divisionId"] = g["divisionId"]
+            g["slotNum"] = s["num"]
+            if not s["date"]:
+                if g.get("date"):
+                    g["date"] = None
+                    g["time"] = ""
+                    g["dateSource"] = "sheet"
+                    date_filled += 1
+                continue
+            g["date"] = s["date"]
+            if s["time"]:
+                g["time"] = s["time"]
+            if s["venue"]:
+                g["venue"] = s["venue"]
+            g["dateSource"] = "sheet"
             date_filled += 1
-        if not best["venue"] and s["venue"]:
-            best["venue"] = s["venue"]
     return matched, date_filled
 
 
