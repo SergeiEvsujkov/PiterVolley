@@ -127,6 +127,35 @@ function trackedTeamIds() {
 
 /* ------------------------------------------------------------------ data */
 
+const UI_DEFAULTS = { gender: 'all', year: 0, calDivision: 0, calMode: 'list', calMonth: null, calDay: null };
+
+function restoreUi() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem('vp.ui') || '{}');
+  } catch (error) {
+    saved = {};
+  }
+  Object.assign(S, UI_DEFAULTS, saved);
+}
+
+function saveUi() {
+  localStorage.setItem('vp.ui', JSON.stringify({
+    gender: S.gender,
+    year: S.year,
+    calDivision: S.calDivision,
+    calMode: S.calMode,
+    calMonth: S.calMonth,
+    calDay: S.calDay,
+  }));
+}
+
+function resetUi() {
+  Object.assign(S, UI_DEFAULTS);
+  saveUi();
+  render();
+}
+
 function saveOverrides() {
   localStorage.setItem('vp.splits', JSON.stringify([...S.splits]));
   localStorage.setItem('vp.merges', JSON.stringify(Object.fromEntries(S.merges)));
@@ -1443,6 +1472,21 @@ function screenSettings() {
   }
   wrap.append(favGroup);
 
+  wrap.append(el('h2', 'section', 'Настройки экрана'));
+  const screenGroup = el('div', 'group');
+  const screenRow = el('div', 'row pad');
+  const screenText = el('div', 'grow');
+  screenText.append(el('div', 'strong', 'Фильтры и вид календаря'));
+  screenText.append(el('div', 'small muted', 'Сохраняются на этом устройстве: выбранный пол, год, список или месяц.'));
+  screenRow.append(screenText);
+  screenGroup.append(screenRow);
+  const resetRow = el('div', 'row pad');
+  const resetFilters = el('button', 'btn btn-ghost', 'Сбросить фильтры');
+  resetFilters.addEventListener('click', () => resetUi());
+  resetRow.append(resetFilters);
+  screenGroup.append(resetRow);
+  wrap.append(screenGroup);
+
   wrap.append(el('h2', 'section', 'Напоминания'));
   const notes = el('div', 'card');
   notes.append(el('div', 'small muted', 'В веб-версии напоминаний нет: браузер не умеет будить приложение по расписанию так же надёжно, как Android. В приложении для Android напоминание приходит в 18:00 за день до игры.'));
@@ -1579,6 +1623,7 @@ function render() {
   document.querySelectorAll('#tabbar a').forEach(a => {
     a.classList.toggle('on', a.dataset.tab === route);
   });
+  saveUi();
 }
 
 $('#backBtn').addEventListener('click', () => { history.length > 1 ? history.back() : location.hash = '#/home'; });
@@ -1586,6 +1631,7 @@ $('#searchBtn').addEventListener('click', () => { location.hash = '#/search/'; r
 $('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'; render(); });
 
 window.addEventListener('hashchange', render);
+restoreUi();
 loadData();
 
 if ('serviceWorker' in navigator) {
