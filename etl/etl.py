@@ -190,6 +190,14 @@ def parse_team_page(html):
 STEP_MINUTES = 75
 
 
+SECOND_FIRST = re.compile(r"2[-\s]*(?:я\s+)?команд\w*\s+играет\s+перв", re.IGNORECASE)
+
+
+def _second_team_first(comment):
+    """«2 команда играет первой» — единственная фраза, меняющая порядок игр."""
+    return bool(SECOND_FIRST.search(comment or ""))
+
+
 def _parse_time(v):
     if isinstance(v, datetime.time):
         return "%02d:%02d" % (v.hour, v.minute)
@@ -246,7 +254,7 @@ def parse_sheet(xls_bytes):
         group = str(row[4] or "").strip()
         championship = group.lower().startswith(("муж", "жен")) or (not ages and games > 1)
         step = 90 if championship else 75
-        labels = list(range(2, max(2, games) + 1)) + [1] if "2 команд" in comment.lower() else list(range(1, games + 1))
+        labels = list(range(2, max(2, games) + 1)) + [1] if _second_team_first(comment) else list(range(1, games + 1))
         for i in range(games):
             slots.append({
                 "num": int(num) if isinstance(num, (int, float)) else None,

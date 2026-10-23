@@ -83,6 +83,20 @@ class SheetSlotsTest {
     }
 
     @Test
+    fun `comment about protocol names does not change order`() {
+        val csv = header + "\n" +
+            "405,07.11.2026,сб,19:30,муж,СШОР,-,Зенит-УОР,пр. Энгельса д.38,2,Судья,Судья,," +
+            "\"В протоколе для 1 команды как в назначениях: \\\"Зенит-ГОШИОР\\\"\\nДля 2 команды: \\\"Зенит-УОР\\\"\""
+        val slots = SheetSlots.parse(csv)
+
+        assertEquals(2, slots.size)
+        assertEquals(1, slots[0].label)
+        assertEquals("19:30", slots[0].time)
+        assertEquals(2, slots[1].label)
+        assertEquals("21:00", slots[1].time)
+    }
+
+    @Test
     fun `combined team name matches without city suffix`() {
         assertEquals(
             SheetSlots.pairKey("Сборная", "Невская"),

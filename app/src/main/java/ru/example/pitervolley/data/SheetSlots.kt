@@ -80,11 +80,13 @@ object SheetSlots {
 
     /** «2 команда играет первой» меняет порядок игр в строке Чемпионата. */
     private fun championshipOrder(games: Int, comment: String): List<Int> =
-        if (comment.contains("2 команд", ignoreCase = true)) {
+        if (SECOND_FIRST.containsMatchIn(comment)) {
             (2..maxOf(2, games)).toList() + listOf(1)
         } else {
             (1..maxOf(1, games)).toList()
         }
+
+    private val SECOND_FIRST = Regex("""2[-\s]*(?:я\s+)?команд\p{L}*\s+играет\s+перв""", RegexOption.IGNORE_CASE)
 
     private fun parseTime(raw: String): LocalTime? {
         val s = raw.trim().replace('.', ':')
