@@ -150,9 +150,45 @@ function buildIndexes(data) {
   }
 }
 
-async function loadData() {
+async function clearSiteCaches() {
+  const controller = navigator.serviceWorker && navigator.serviceWorker.controller;
+  if (controller) {
+    controller.postMessage({ type: 'CLEAR' });
+    return;
+  }
   try {
-    const response = await fetch('data.json', { cache: 'no-cache' });
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+  } catch (error) {
+    // кэш может быть недоступен — не мешаем обновлению
+  }
+}
+
+async function refreshAll(button) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Обновляем…';
+  try {
+    await clearSiteCaches();
+    await loadData(true);
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        await registration.update();
+        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }
+    render();
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+async function loadData(fresh) {
+  const url = fresh ? `data.json?ts=${Date.now()}` : 'data.json';
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     S.data = await response.json();
     buildIndexes(S.data);
@@ -227,6 +263,13 @@ const GENDER_COLORS = { boys: '#1b4f9c', girls: '#c2417f', men: '#2f7d4f', women
 
 function genderColor(division) {
   return GENDER_COLORS[division ? division.gender : ''] || '#1b4f9c';
+}
+
+function compareDivisions(a, b) {
+  const rank = division => (division.competition.toLowerCase().includes('первенство') ? 0 : 1);
+  return rank(a) - rank(b)
+    || (a.birthYear || 0) - (b.birthYear || 0)
+    || (a.teamLabel || 0) - (b.teamLabel || 0);
 }
 
 function miniLogo(team) {
@@ -516,10 +559,7 @@ function screenHome() {
   updatedText.append(el('div', 'small muted', sheetUsed() ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
   updatedRow.append(updatedText);
   const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
-  refresh.addEventListener('click', async () => {
-    refresh.textContent = 'Обновляем…';
-    await loadData();
-  });
+  refresh.addEventListener('click', () => refreshAll(refresh));
   updatedRow.append(refresh);
   updated.append(updatedRow);
   wrap.append(updated);
@@ -612,7 +652,7 @@ function screenHome() {
   for (const [gender, label] of groups) {
     const list = S.data.divisions
       .filter(d => d.gender === gender)
-      .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+      .sort(compareDivisions);
     if (!list.length) continue;
     const block = el('div', 'divgroup');
     block.append(el('div', 'divlabel', label));
@@ -671,7 +711,7 @@ function screenDivisions() {
 
   const list = S.data.divisions
     .filter(d => S.gender === 'all' || d.gender === S.gender)
-    .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+    .sort(compareDivisions);
 
   if (S.gender === 'boys' || S.gender === 'girls') {
     const years = [...new Set(list.map(d => d.birthYear))].filter(Boolean);
@@ -965,7 +1005,7 @@ function screenCalendar() {
   if (S.gender === 'boys' || S.gender === 'girls' || S.gender === 'men' || S.gender === 'women') {
     const list = S.data.divisions
       .filter(d => d.gender === S.gender)
-      .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+      .sort(compareDivisions);
     if (list.length) {
       const row = el('div', 'chips');
       const all = el('button', 'chip' + (S.calDivision === 0 ? ' on' : ''), 'Все');
@@ -1215,10 +1255,7 @@ function screenSettings() {
   updatedText.append(el('div', 'small muted', generatedText()));
   updated.append(updatedText);
   const refresh = el('button', 'btn btn-accent', 'Обновить');
-  refresh.addEventListener('click', async () => {
-    refresh.textContent = 'Обновляем…';
-    await loadData();
-  });
+  refresh.addEventListener('click', () => refreshAll(refresh));
   updated.append(refresh);
   dataGroup.append(updated);
 
@@ -1392,7 +1429,20 @@ window.addEventListener('hashchange', render);
 loadData();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } catch (error) {
+      // без service worker приложение всё равно работает
+    }
   });
 }
