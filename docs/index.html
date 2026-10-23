@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VolleyPiter</title>
+<meta name="description" content="Первенство и Чемпионат Санкт-Петербурга по волейболу: календарь, результаты, таблицы, команды и игроки.">
+<meta name="theme-color" content="#1b4f9c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="VolleyPiter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar" id="topbar">
+  <button class="back" id="backBtn" hidden aria-label="Назад">Назад</button>
+  <div class="titles">
+    <h1 id="title">VolleyPiter</h1>
+    <p id="subtitle">Волейбол СПб</p>
+  </div>
+  <button class="icon-btn" id="searchBtn" aria-label="Поиск">⌕</button>
+</header>
+
+<main id="app" class="screen"><div class="empty">Загрузка…</div></main>
+
+<nav class="tabbar" id="tabbar">
+  <a href="#/home" data-tab="home"><span>⌂</span>Главная</a>
+  <a href="#/calendar" data-tab="calendar"><span>▦</span>Календарь</a>
+  <a href="#/divisions" data-tab="divisions"><span>☰</span>Дивизионы</a>
+</nav>
+
+<div class="offline" id="offline" hidden>Нет сети — показаны сохранённые данные</div>
+
+<script>
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('app');
+  if (box) box.innerHTML = '<div class="empty">Не удалось запустить приложение. Обновите страницу.</div>';
+  console.error(e.message, e.filename, e.lineno);
+});
+</script>
+<script src="app.js"></script>
+</body>
+</html>
