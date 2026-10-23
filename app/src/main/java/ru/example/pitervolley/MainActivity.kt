@@ -40,6 +40,8 @@ import ru.example.pitervolley.notify.ReminderWorker
 import ru.example.pitervolley.ui.VolleyPiterApp
 import ru.example.pitervolley.ui.theme.VolleyPiterTheme
 
+private const val LAUNCH_REFRESH_MS = 2 * 60 * 1000L
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,9 +71,10 @@ class MainActivity : ComponentActivity() {
                         try {
                             withContext(Dispatchers.IO) { Repo.load(app) }
 
-                            // Первый запуск: сразу подтягиваем свежие данные с сайта,
-                            // но не держим пользователя дольше 20 секунд.
-                            if (SiteSync.lastSync(app) == 0L) {
+                            // Каждый запуск подтягиваем свежий data.json с GitHub,
+                            // но не чаще раза в 2 минуты и не дольше 20 секунд.
+                            val sinceLast = System.currentTimeMillis() - SiteSync.lastSync(app)
+                            if (SiteSync.lastSync(app) == 0L || sinceLast > LAUNCH_REFRESH_MS) {
                                 withTimeoutOrNull(20_000) {
                                     SiteSync.refresh(app, force = true)
                                 }

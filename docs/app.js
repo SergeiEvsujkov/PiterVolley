@@ -1848,7 +1848,15 @@ $('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'
 
 window.addEventListener('hashchange', render);
 restoreUi();
-loadData();
+loadData(true);
+
+// возврат в приложение: если данные старше 10 минут — обновляем
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const stamp = localStorage.getItem('vp.lastSync');
+  const last = stamp ? new Date(stamp).getTime() : 0;
+  if (!last || Date.now() - last > 10 * 60 * 1000) loadData(true);
+});
 
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
