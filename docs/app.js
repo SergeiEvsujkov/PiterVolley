@@ -747,6 +747,7 @@ function screenHome() {
   }
 
   if (tracked.size) {
+    wrap.append(el('h2', 'section', 'Игры избранных'));
     const favPast = !!S.favPast;
     const favTabs = el('div', 'seghead');
     for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
