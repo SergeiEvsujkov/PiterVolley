@@ -223,7 +223,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
     val baseKey = remember(revision, playerId) { Repo.baseKeyOf(player) }
     val teams = person?.teams.orEmpty()
     val favorites by Favorites.persons.collectAsState()
-    val isFavorite = person != null && Favorites.isPersonFavorite(person.key)
+    val isFavorite = person != null && Favorites.isPersonFavorite(person.key, favorites)
     var mergeDialog by remember { mutableStateOf(false) }
 
     ScreenScaffold(

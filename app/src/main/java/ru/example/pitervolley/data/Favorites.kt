@@ -45,7 +45,14 @@ object Favorites {
         return _persons.value.map { Repo.resolvePersonKey(it) }.toSet()
     }
 
-    fun isPersonFavorite(key: String): Boolean = key in personKeys()
+    fun isPersonFavorite(key: String): Boolean = isPersonFavorite(key, _persons.value)
+
+    /** Проверка по уже собранному состоянию — чтобы экран перерисовывался при изменении. */
+    fun isPersonFavorite(key: String, stored: Set<String>): Boolean =
+        stored.any { storedKey -> resolve(storedKey) == key }
+
+    private fun resolve(stored: String): String =
+        if (Repo.isLoaded) Repo.resolvePersonKey(stored) else stored
 
     fun togglePerson(key: String): Boolean {
         val current = _persons.value
