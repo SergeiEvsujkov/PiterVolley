@@ -205,6 +205,26 @@ function resetOverrides() {
   render();
 }
 
+function normalizeDataset(data) {
+  for (const division of data.divisions || []) division.id = String(division.id);
+  for (const team of data.teams || []) {
+    team.id = String(team.id);
+    team.divisionId = String(team.divisionId);
+  }
+  for (const player of data.players || []) {
+    player.id = String(player.id);
+    player.teamId = String(player.teamId);
+    player.divisionId = String(player.divisionId);
+  }
+  for (const game of data.games || []) {
+    game.id = String(game.id);
+    game.homeId = String(game.homeId);
+    game.awayId = String(game.awayId);
+    game.divisionId = String(game.divisionId);
+  }
+  return data;
+}
+
 function buildIndexes(data) {
   S.divisions.clear();
   S.teams.clear();
@@ -271,13 +291,13 @@ async function loadData(fresh) {
   try {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('HTTP ' + response.status);
-    S.data = await response.json();
+    S.data = normalizeDataset(await response.json());
     buildIndexes(S.data);
     localStorage.setItem('vp.data', JSON.stringify({ at: Date.now(), data: S.data }));
   } catch (error) {
     const cached = localStorage.getItem('vp.data');
     if (cached) {
-      S.data = JSON.parse(cached).data;
+      S.data = normalizeDataset(JSON.parse(cached).data);
       buildIndexes(S.data);
     } else {
       app.innerHTML = '<div class="empty">Не удалось загрузить данные. Проверьте интернет и обновите страницу.</div>';
@@ -1128,7 +1148,7 @@ function openMergeDialog(fromKey) {
 }
 
 function screenGame(divisionId, gameId) {
-  const game = S.data.games.find(g => String(g.id) === String(gameId) && g.divisionId === Number(divisionId))
+  const game = S.data.games.find(g => String(g.id) === String(gameId) && g.divisionId === String(divisionId))
     || S.data.games.find(g => String(g.id) === String(gameId));
   if (!game) return el('div', 'empty', 'Игра не найдена');
   const division = S.divisions.get(game.divisionId);
@@ -1605,8 +1625,8 @@ function render() {
   } else if (route === 'divisions') {
     content = screenDivisions();
   } else if (route === 'division') {
-    const division = S.divisions.get(Number(parts[1]));
-    content = screenDivision(Number(parts[1]), parts[2]);
+    const division = S.divisions.get(parts[1]);
+    content = screenDivision(parts[1], parts[2]);
     if (division) { title = division.competition; subtitle = divisionSubtitle(division); }
     back = true;
   } else if (route === 'team') {
