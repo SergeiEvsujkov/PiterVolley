@@ -2,11 +2,16 @@ name: ETL
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # 07:00, 13:00, 19:00 по Москве (UTC+3)
+    - cron: "0 4,10,16 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: etl
+  cancel-in-progress: false
 
 jobs:
   build-data:
