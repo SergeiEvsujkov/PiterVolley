@@ -105,6 +105,9 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
         }
     }
     val byDate = remember(games) { games.filter { it.date != null }.groupBy { it.date!! } }
+    val undated = remember(games) {
+        games.filter { it.date == null }.sortedWith(compareBy({ it.divisionId }, { it.round ?: 0 }))
+    }
 
     val month = YearMonth.parse(monthIso)
     val monthCounts = remember(monthIso, byDate) {
@@ -189,7 +192,7 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
                         onOpenGame = onOpenGame,
                     )
                 } else {
-                    ListView(byDate = byDate, onOpenGame = onOpenGame)
+                    ListView(byDate = byDate, undated = undated, onOpenGame = onOpenGame)
                 }
                 }
             }
@@ -198,9 +201,9 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
 }
 
 @Composable
-private fun ListView(byDate: Map<String, List<Game>>, onOpenGame: (Game) -> Unit) {
+private fun ListView(byDate: Map<String, List<Game>>, undated: List<Game>, onOpenGame: (Game) -> Unit) {
     val dates = remember(byDate) { byDate.keys.sorted() }
-    if (dates.isEmpty()) {
+    if (dates.isEmpty() && undated.isEmpty()) {
         EmptyState("По выбранным фильтрам игр нет")
         return
     }
@@ -231,6 +234,28 @@ private fun ListView(byDate: Map<String, List<Game>>, onOpenGame: (Game) -> Unit
             }
             items(byDate[date].orEmpty(), key = { "${it.divisionId}-${it.id}" }) { game ->
                 GameCard(game, onClick = { onOpenGame(game) }, showDivision = true, showDate = false)
+            }
+        }
+        if (undated.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Дата не назначена · ${undated.size}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 4.dp),
+                )
+            }
+            item {
+                Text(
+                    text = "Федерация опубликует дату позже — игры появятся в календаре автоматически.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            items(undated, key = { "u-${it.divisionId}-${it.id}" }) { game ->
+                GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
             }
         }
         item { Spacer(Modifier.height(24.dp)) }

@@ -19,6 +19,8 @@ object GameNotifications {
 
     private const val CHANNEL_ID = "games"
     private const val NOTIFICATION_ID = 1001
+    private const val PREFS = "reminder"
+    private const val KEY_DAY = "last_notified_day"
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -41,11 +43,14 @@ object GameNotifications {
     /** Posts one digest notification for tomorrow's games, if any favourite team plays. */
     fun notifyTomorrow(context: Context) {
         if (!canNotify(context)) return
-        val favorites = Favorites.teams.value
+        val favorites = Favorites.trackedTeamIds()
         if (favorites.isEmpty()) return
         if (!Repo.isLoaded) return
 
         val tomorrow = today().plusDays(1).toString()
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_DAY, null) == tomorrow) return
+
         val games = Repo.data.games
             .filter { it.date == tomorrow && (it.homeId in favorites || it.awayId in favorites) }
             .sortedBy { it.time }
@@ -69,6 +74,8 @@ object GameNotifications {
 
         runCatching {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        }.onSuccess {
+            prefs.edit().putString(KEY_DAY, tomorrow).apply()
         }
     }
 }

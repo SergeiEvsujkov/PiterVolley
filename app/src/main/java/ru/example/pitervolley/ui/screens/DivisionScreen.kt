@@ -259,9 +259,19 @@ private fun GamesTab(games: List<Game>, onOpenGame: (Game) -> Unit) {
         EmptyState("Игр нет")
         return
     }
+    val dated = games.filter { it.date != null }
+    val undated = games.filter { it.date == null }
     LazyColumn(Modifier.fillMaxSize()) {
-        items(games, key = { "${it.divisionId}-${it.id}" }) { game ->
+        items(dated, key = { "${it.divisionId}-${it.id}" }) { game ->
             GameCard(game, onClick = { onOpenGame(game) })
+        }
+        if (undated.isNotEmpty()) {
+            item {
+                ru.example.pitervolley.ui.SectionTitle("Дата не назначена · ${undated.size}")
+            }
+            items(undated, key = { "u-${it.divisionId}-${it.id}" }) { game ->
+                GameCard(game, onClick = { onOpenGame(game) })
+            }
         }
         item { Spacer(Modifier.height(16.dp)) }
     }

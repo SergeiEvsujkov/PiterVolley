@@ -35,6 +35,7 @@ import ru.example.pitervolley.data.PersonOverrides
 import ru.example.pitervolley.data.Repo
 import ru.example.pitervolley.data.SiteSync
 import ru.example.pitervolley.notify.GameNotifications
+import ru.example.pitervolley.notify.ReminderWorker
 import ru.example.pitervolley.ui.PiterVolleyApp
 import ru.example.pitervolley.ui.theme.PiterVolleyTheme
 
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
 
                     // Данные с сайта обновляются только вручную, кнопкой «Обновить».
                     if (error == null) {
+                        ReminderWorker.schedule(app)
                         runCatching { GameNotifications.notifyTomorrow(app) }
                     }
                 }
