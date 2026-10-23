@@ -165,9 +165,9 @@ a{color:inherit;text-decoration:none}
 .table tr:active td{background:var(--brand-soft)}
 .caption{color:var(--muted);font-size:12px;line-height:1.5;padding:10px 2px}
 
-.seg{display:flex;align-items:center;gap:12px}
-.segbtn{background:none;border:0;padding:0;font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
-.segbtn.on{color:var(--brand);font-weight:700}
+.seghead{display:flex;align-items:center;gap:16px;margin:26px 0 10px}
+.segbtn{background:none;border:0;padding:0;font:inherit;font-size:18px;font-weight:650;color:var(--muted);cursor:pointer;letter-spacing:-.2px}
+.segbtn.on{color:var(--text);font-weight:750}
 .divcard{padding:14px;margin:5px 0 0;cursor:pointer}
 .divhead{display:flex;align-items:center;gap:10px}
 .divtitle{font-size:16px;font-weight:700;line-height:1.2}

@@ -244,31 +244,31 @@ fun HomeScreen(
                 }
 
                 item {
-                    SectionTitle(
-                        text = if (showPast) "Прошедшие" else "Ближайшие",
-                        trailing = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(onClick = { if (showPast) showPast = false }) {
-                                    Text(
-                                        "Ближайшие",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (showPast) FontWeight.Normal else FontWeight.Bold,
-                                        color = if (showPast) MaterialTheme.colorScheme.onSurfaceVariant
-                                        else MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                                TextButton(onClick = { if (!showPast) showPast = true }) {
-                                    Text(
-                                        "Прошедшие",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (showPast) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (showPast) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        },
-                    )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { if (showPast) showPast = false }) {
+                            Text(
+                                "Ближайшие",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = if (showPast) FontWeight.Medium else FontWeight.Bold,
+                                color = if (showPast) MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onBackground,
+                            )
+                        }
+                        TextButton(onClick = { if (!showPast) showPast = true }) {
+                            Text(
+                                "Прошедшие",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = if (showPast) FontWeight.Bold else FontWeight.Medium,
+                                color = if (showPast) MaterialTheme.colorScheme.onBackground
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
                 val feed = if (showPast) pastGames else upcoming
                 if (feed.isEmpty()) {

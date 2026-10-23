@@ -747,8 +747,7 @@ function screenHome() {
   }
 
   const showPast = !!S.homePast;
-  const feedTitle = el('h2', 'section', showPast ? 'Прошедшие' : 'Ближайшие');
-  const segment = el('div', 'seg');
+  const segment = el('div', 'seghead');
   for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
     const button = el('button', (value === showPast ? 'on ' : '') + 'segbtn', label);
     button.addEventListener('click', () => {
@@ -756,8 +755,7 @@ function screenHome() {
     });
     segment.append(button);
   }
-  feedTitle.append(segment);
-  wrap.append(feedTitle);
+  wrap.append(segment);
   const feed = showPast ? pastGames : upcoming;
   if (!feed.length) {
     wrap.append(el('div', 'empty', showPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
