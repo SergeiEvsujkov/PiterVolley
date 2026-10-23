@@ -93,6 +93,7 @@ const S = {
   calMode: 'list',
   calMonth: null,
   calDay: null,
+  homePast: false,
   calDivision: 0,
   searchQuery: '',
 };
@@ -647,11 +648,27 @@ function combinedStandings(divisionId) {
 
 /* ------------------------------------------------------------------ views */
 
+function gameStart(game) {
+  if (!game || !game.date) return null;
+  const time = /^\d{1,2}:\d{2}$/.test(game.time || '') ? game.time.padStart(5, '0') : '00:00';
+  const start = new Date(`${game.date}T${time}:00`);
+  return Number.isNaN(start.getTime()) ? null : start;
+}
+
+function isPastGame(game) {
+  const start = gameStart(game);
+  return start != null && Date.now() - start.getTime() >= 60 * 60 * 1000;
+}
+
 function screenHome() {
   const tracked = trackedTeamIds();
   const upcoming = S.data.games
-    .filter(g => g.date && g.date >= todayIso())
+    .filter(g => { const start = gameStart(g); return start != null && !isPastGame(g); })
     .sort(sortGames)
+    .slice(0, 6);
+  const pastGames = S.data.games
+    .filter(isPastGame)
+    .sort((a, b) => sortGames(b, a))
     .slice(0, 6);
   const myGames = S.data.games
     .filter(g => g.date && g.date >= todayIso() && (tracked.has(g.homeId) || tracked.has(g.awayId)))
@@ -729,13 +746,17 @@ function screenHome() {
     for (const game of myGames) wrap.append(gameCard(game));
   }
 
-  const upcomingTitle = el('h2', 'section', 'Ближайшие игры');
-  const allGames = el('button', 'link', 'Все игры');
-  allGames.addEventListener('click', () => { location.hash = '#/calendar'; });
-  upcomingTitle.append(allGames);
-  wrap.append(upcomingTitle);
-  if (!upcoming.length) wrap.append(el('div', 'empty', 'Ближайших игр пока нет'));
-  for (const game of upcoming.slice(0, 6)) wrap.append(gameCard(game));
+  const showPast = !!S.homePast;
+  const feedTitle = el('h2', 'section', showPast ? 'Прошедшие' : 'Ближайшие');
+  const switchFeed = el('button', 'link', showPast ? 'Ближайшие' : 'Прошедшие');
+  switchFeed.addEventListener('click', () => { S.homePast = !showPast; render(); });
+  feedTitle.append(switchFeed);
+  wrap.append(feedTitle);
+  const feed = showPast ? pastGames : upcoming;
+  if (!feed.length) {
+    wrap.append(el('div', 'empty', showPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
+  }
+  for (const game of feed) wrap.append(gameCard(game));
 
   wrap.append(el('h2', 'section', 'Соревнования'));
   const competitions = el('div', 'stats');

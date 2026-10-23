@@ -167,14 +167,32 @@ object Repo {
 
     // ---------------------------------------------------------------- feeds
 
-    /** Games with a date, from today on, nearest first. */
-    fun upcoming(limit: Int): List<Game> {
-        val t = today()
-        return data.games
-            .filter { it.localDate != null && !it.localDate!!.isBefore(t) }
+    private fun startOf(game: Game): java.time.LocalDateTime? {
+        val date = game.localDate ?: return null
+        val time = runCatching { java.time.LocalTime.parse(game.time.padStart(5, '0')) }
+            .getOrElse { java.time.LocalTime.MIDNIGHT }
+        return java.time.LocalDateTime.of(date, time)
+    }
+
+    /** Игра считается прошедшей, если с её начала прошёл час. */
+    fun isPastGame(game: Game): Boolean {
+        val start = startOf(game) ?: return false
+        return start.plusHours(1).isBefore(java.time.LocalDateTime.now())
+    }
+
+    /** Ближайшие игры: ещё не начавшиеся или начавшиеся меньше часа назад. */
+    fun upcoming(limit: Int): List<Game> =
+        data.games
+            .filter { it.localDate != null && !isPastGame(it) }
             .sortedWith(compareBy({ it.localDate }, { it.time }))
             .take(limit)
-    }
+
+    /** Прошедшие игры, свежие сверху. */
+    fun past(limit: Int): List<Game> =
+        data.games
+            .filter { isPastGame(it) }
+            .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
+            .take(limit)
 
     /** All dated games, newest dates first (for the calendar list). */
     fun calendarGames(): List<Game> =

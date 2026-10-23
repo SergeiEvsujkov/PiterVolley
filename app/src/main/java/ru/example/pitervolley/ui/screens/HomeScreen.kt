@@ -31,7 +31,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,7 +114,9 @@ fun HomeScreen(
             .sortedWith(compareBy({ it.localDate }, { it.time }))
             .take(5)
     }
+    var showPast by rememberSaveable { mutableStateOf(false) }
     val upcoming = remember(revision) { Repo.upcoming(6) }
+    val pastGames = remember(revision) { Repo.past(6) }
     val played = remember(revision) { ds.games.count { it.hasResult } }
     val venuesCount = remember(revision) { ds.games.map { it.venue }.filter { it.isNotBlank() }.distinct().size }
 
@@ -242,18 +246,26 @@ fun HomeScreen(
 
                 item {
                     SectionTitle(
-                        text = "Ближайшие игры",
+                        text = if (showPast) "Прошедшие" else "Ближайшие",
                         trailing = {
-                            TextButton(onClick = onOpenCalendar) {
-                                Text("Все игры", style = MaterialTheme.typography.labelMedium)
+                            TextButton(onClick = { showPast = !showPast }) {
+                                Text(
+                                    if (showPast) "Ближайшие" else "Прошедшие",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
                             }
                         },
                     )
                 }
-                if (upcoming.isEmpty()) {
-                    item { ru.example.pitervolley.ui.EmptyState("Ближайших игр пока нет") }
+                val feed = if (showPast) pastGames else upcoming
+                if (feed.isEmpty()) {
+                    item {
+                        ru.example.pitervolley.ui.EmptyState(
+                            if (showPast) "Прошедших игр пока нет" else "Ближайших игр пока нет",
+                        )
+                    }
                 }
-                items(upcoming, key = { "${it.divisionId}-${it.id}" }) { game ->
+                items(feed, key = { "${it.divisionId}-${it.id}" }) { game ->
                     GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
                 }
 
