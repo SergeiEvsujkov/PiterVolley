@@ -183,6 +183,20 @@ function isChampionship(division) {
   return !!division && division.competition.toLowerCase().includes('чемпионат');
 }
 
+const GENDER_COLORS = { boys: '#1b4f9c', girls: '#c2417f', men: '#2f7d4f', women: '#e8862e' };
+
+function genderColor(division) {
+  return GENDER_COLORS[division ? division.gender : ''] || '#1b4f9c';
+}
+
+function chevron() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'chev');
+  svg.innerHTML = '<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  return svg;
+}
+
 const GENDER_RU = { boys: 'Юноши', girls: 'Девушки', men: 'Мужчины', women: 'Женщины' };
 
 function divisionSubtitle(division) {
@@ -211,7 +225,9 @@ function gameCard(game, options = {}) {
   const division = S.divisions.get(game.divisionId);
   const card = el('div', 'game');
   const comp = el('div', 'comp');
-  comp.append(el('span', 'dot', '●'), document.createTextNode(' ' + (division ? `${division.competition} · ${divisionSubtitle(division)}` : '')));
+  const dot = el('span', 'dot');
+  dot.style.background = genderColor(division);
+  comp.append(dot, document.createTextNode(division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
   card.append(comp);
 
   const line = el('div', 'line');
@@ -228,9 +244,11 @@ function gameCard(game, options = {}) {
     const logo = S.teams.get(side === 'home' ? game.homeId : game.awayId);
     if (logo && logo.logo) {
       const img = el('img');
-      img.src = logo.logo;
       img.alt = '';
       img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.src = logo.logo;
+      img.addEventListener('error', () => img.remove());
       row.append(img);
     }
     row.append(el('span', null, side === 'home' ? game.home : game.away));
@@ -434,15 +452,10 @@ function screenHome() {
   const updatedRow = el('div', 'row');
   const updatedText = el('div', 'grow');
   updatedText.append(el('div', 'small muted', 'Последнее обновление'));
-  const generated = S.data.generatedAt ? new Date(S.data.generatedAt) : null;
-  const stamp = generated
-    ? `${String(generated.getDate()).padStart(2, '0')}.${String(generated.getMonth() + 1).padStart(2, '0')}.${generated.getFullYear()} в ${String(generated.getHours()).padStart(2, '0')}:${String(generated.getMinutes()).padStart(2, '0')}`
-    : 'нет данных';
-  updatedText.append(el('div', 'strong', stamp));
-  const sheetUsed = (S.data.counts && S.data.counts.datesFromSheet > 0) || S.data.games.some(g => g.dateSource === 'sheet');
-  updatedText.append(el('div', 'small muted', sheetUsed ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
+  updatedText.append(el('div', 'strong', generatedText()));
+  updatedText.append(el('div', 'small muted', sheetUsed() ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
   updatedRow.append(updatedText);
-  const refresh = el('button', 'chip on', 'Обновить');
+  const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
   refresh.addEventListener('click', async () => {
     refresh.textContent = 'Обновляем…';
     await loadData();
@@ -462,7 +475,7 @@ function screenHome() {
       text.append(el('div', null, team.name));
       const division = S.divisions.get(team.divisionId);
       text.append(el('div', 'small muted ellipsis', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -479,7 +492,7 @@ function screenHome() {
       const text = el('div', 'grow');
       text.append(el('div', null, person.name));
       text.append(el('div', 'small muted', person.teams.length > 1 ? teamsWord(person.teams.length) : (person.teams[0] ? person.teams[0].name : '')));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(person.key)}`; });
       card.append(row);
     }
@@ -513,7 +526,7 @@ function screenHome() {
   const venueText = el('div', 'grow');
   venueText.append(el('div', 'strong', 'Адреса игр'));
   venueText.append(el('div', 'small muted', venuesWord(venues.size) + ' · расписание по каждому'));
-  venueRow.append(venueText, el('span', 'chev', '›'));
+  venueRow.append(venueText, chevron());
   venueCard.append(venueRow);
   venueCard.addEventListener('click', () => { location.hash = '#/venues'; });
   wrap.append(venueCard);
@@ -524,9 +537,11 @@ function screenHome() {
 function teamLogo(team) {
   if (team && team.logo) {
     const img = el('img', 'logo');
-    img.src = team.logo;
     img.alt = '';
     img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = team.logo;
+    img.addEventListener('error', () => img.remove());
     return img;
   }
   return el('div', 'avatar');
@@ -535,9 +550,11 @@ function teamLogo(team) {
 function personAvatar(person) {
   if (person && person.photo) {
     const img = el('img', 'avatar');
-    img.src = person.photo;
     img.alt = '';
     img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = person.photo;
+    img.addEventListener('error', () => img.remove());
     return img;
   }
   return el('div', 'avatar');
@@ -669,7 +686,7 @@ function screenDivision(divisionId, tab) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', playersWord(S.data.players.filter(p => p.teamId === team.id).length)));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -712,7 +729,7 @@ function screenTeam(teamId) {
     const text = el('div', 'grow');
     text.append(el('div', null, player.name));
     if (player.birthYear) text.append(el('div', 'small muted', `${player.birthYear} г.р.`));
-    row.append(text, el('span', 'chev', '›'));
+    row.append(text, chevron());
     row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}`; });
     grid.append(row);
   }
@@ -753,7 +770,7 @@ function screenPlayer(key) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -885,7 +902,7 @@ function screenVenues() {
     const text = el('div', 'grow');
     text.append(el('div', null, venue));
     text.append(el('div', 'small muted', gamesWord(count)));
-    row.append(text, el('span', 'chev', '›'));
+    row.append(text, chevron());
     row.addEventListener('click', () => { location.hash = `#/venue/${encodeURIComponent(venue)}`; });
     card.append(row);
   }
@@ -949,7 +966,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -965,7 +982,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, person.name));
       text.append(el('div', 'small muted', person.birthYear ? `${person.birthYear} г.р.` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(person.key)}`; });
       card.append(row);
     }
@@ -980,7 +997,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, division.competition));
       text.append(el('div', 'small muted', divisionSubtitle(division)));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
       card.append(row);
     }
@@ -996,24 +1013,68 @@ function buildSearchResults(query) {
 function screenSettings() {
   const wrap = document.createDocumentFragment();
 
-  wrap.append(el('h2', 'section', 'Избранное'));
-  const card = el('div', 'card');
-  card.append(el('div', null, `Команд: ${S.favTeams.size}, игроков: ${S.favPersons.size}`));
-  const reset = el('button', 'chip', 'Сбросить избранное');
-  reset.style.marginTop = '10px';
-  reset.addEventListener('click', () => {
-    S.favTeams.clear();
-    S.favPersons.clear();
-    saveFavorites();
-    render();
+  wrap.append(el('h2', 'section', 'Данные'));
+  const dataGroup = el('div', 'group');
+  const updated = el('div', 'row pad');
+  const updatedText = el('div', 'grow');
+  updatedText.append(el('div', 'strong', 'Последнее обновление'));
+  updatedText.append(el('div', 'small muted', generatedText()));
+  updated.append(updatedText);
+  const refresh = el('button', 'btn btn-accent', 'Обновить');
+  refresh.addEventListener('click', async () => {
+    refresh.textContent = 'Обновляем…';
+    await loadData();
   });
-  card.append(reset);
-  wrap.append(card);
+  updated.append(refresh);
+  dataGroup.append(updated);
+
+  const source = el('div', 'row pad');
+  const sourceText = el('div', 'grow');
+  sourceText.append(el('div', 'strong', 'Источник'));
+  sourceText.append(el('div', 'small muted', sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru'));
+  source.append(sourceText);
+  dataGroup.append(source);
+
+  const counts = el('div', 'row pad');
+  const countsText = el('div', 'grow');
+  countsText.append(el('div', 'strong', 'В базе'));
+  countsText.append(el('div', 'small muted', `${S.data.divisions.length} дивизионов · ${teamsWord(S.data.teams.length)} · ${playersWord(S.persons.size)}`));
+  counts.append(countsText);
+  dataGroup.append(counts);
+  wrap.append(dataGroup);
+
+  wrap.append(el('h2', 'section', 'Избранное'));
+  const favGroup = el('div', 'group');
+  const favRow = el('div', 'row pad');
+  const favText = el('div', 'grow');
+  favText.append(el('div', 'strong', 'Мои команды и игроки'));
+  favText.append(el('div', 'small muted', `${teamsWord(S.favTeams.size)}, ${playersWord(S.favPersons.size)}`));
+  favRow.append(favText);
+  favGroup.append(favRow);
+
+  if (S.favTeams.size || S.favPersons.size) {
+    const resetRow = el('div', 'row pad');
+    const reset = el('button', 'btn btn-ghost', 'Сбросить избранное');
+    reset.addEventListener('click', () => {
+      S.favTeams.clear();
+      S.favPersons.clear();
+      saveFavorites();
+      render();
+    });
+    resetRow.append(reset);
+    favGroup.append(resetRow);
+  }
+  wrap.append(favGroup);
 
   wrap.append(el('h2', 'section', 'Напоминания'));
   const notes = el('div', 'card');
-  notes.append(el('div', 'small muted', 'В веб-версии напоминаний пока нет. На Android-приложении они приходят в 18:00 за день до игры.'));
+  notes.append(el('div', 'small muted', 'В веб-версии напоминаний нет: браузер не умеет будить приложение по расписанию так же надёжно, как Android. В приложении для Android напоминание приходит в 18:00 за день до игры.'));
   wrap.append(notes);
+
+  wrap.append(el('h2', 'section', 'Установка на iPhone'));
+  const install = el('div', 'card');
+  install.append(el('div', 'small muted', 'Safari → «Поделиться» → «На экран Домой». Появится иконка, приложение откроется без адресной строки и будет работать офлайн.'));
+  wrap.append(install);
 
   wrap.append(el('h2', 'section', 'О проекте'));
   const about = el('div', 'card about');
@@ -1025,12 +1086,19 @@ function screenSettings() {
   about.append(mail);
   wrap.append(about);
 
-  wrap.append(el('h2', 'section', 'Установка на iPhone'));
-  const install = el('div', 'card');
-  install.append(el('div', 'small muted', 'Откройте сайт в Safari → «Поделиться» → «На экран Домой». Приложение появится как отдельная иконка и будет работать офлайн.'));
-  wrap.append(install);
-
   return wrap;
+}
+
+function generatedText() {
+  if (!S.data.generatedAt) return 'нет данных';
+  const d = new Date(S.data.generatedAt);
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function sheetUsed() {
+  if (S.data.counts && S.data.counts.datesFromSheet > 0) return true;
+  return S.data.games.some(game => game.dateSource === 'sheet');
 }
 
 /* ------------------------------------------------------------------ router */
@@ -1122,6 +1190,7 @@ function render() {
 
 $('#backBtn').addEventListener('click', () => { history.length > 1 ? history.back() : location.hash = '#/home'; });
 $('#searchBtn').addEventListener('click', () => { location.hash = '#/search/'; render(); });
+$('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'; render(); });
 
 window.addEventListener('hashchange', render);
 loadData();
