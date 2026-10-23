@@ -293,6 +293,7 @@ async function loadData(fresh) {
     if (!response.ok) throw new Error('HTTP ' + response.status);
     S.data = normalizeDataset(await response.json());
     buildIndexes(S.data);
+    localStorage.setItem('vp.lastSync', new Date().toISOString());
     localStorage.setItem('vp.data', JSON.stringify({ at: Date.now(), data: S.data }));
   } catch (error) {
     const cached = localStorage.getItem('vp.data');
@@ -1582,8 +1583,11 @@ function screenSettings() {
 }
 
 function generatedText() {
-  if (!S.data.generatedAt) return 'нет данных';
-  const d = new Date(S.data.generatedAt);
+  const stored = localStorage.getItem('vp.lastSync');
+  const source = stored || S.data.generatedAt;
+  if (!source) return 'ещё не обновляли';
+  const d = new Date(source);
+  if (Number.isNaN(d.getTime())) return 'ещё не обновляли';
   const pad = value => String(value).padStart(2, '0');
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
