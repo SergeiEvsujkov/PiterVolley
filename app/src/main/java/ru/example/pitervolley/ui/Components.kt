@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -29,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +40,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import coil.compose.AsyncImage
 import ru.example.pitervolley.data.Game
 import ru.example.pitervolley.data.Repo
@@ -58,6 +63,14 @@ fun genderColor(gender: String?): Color = when (gender) {
     "women" -> Color(0xFF8E5BD0)
     else -> BrandBlue
 }
+
+/** Действия шапки, доступные на всех экранах. */
+data class TopBarActions(
+    val onSearch: () -> Unit,
+    val onSettings: () -> Unit,
+)
+
+val LocalTopBarActions = staticCompositionLocalOf<TopBarActions?> { null }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +107,18 @@ fun ScreenScaffold(
                         TextButton(onClick = onBack) { Text("Назад") }
                     }
                 },
-                actions = actions,
+                actions = {
+                    actions()
+                    val global = LocalTopBarActions.current
+                    if (global != null) {
+                        IconButton(onClick = global.onSearch) {
+                            Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = global.onSettings) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                },
             )
         },
         content = content,

@@ -119,14 +119,6 @@ fun HomeScreen(
     ScreenScaffold(
         title = "VolleyPiter",
         subtitle = "Волейбол СПб · сезон ${ds.season}",
-        actions = {
-            IconButton(onClick = onOpenSearch) {
-                Icon(Icons.Filled.Search, contentDescription = "Поиск", tint = MaterialTheme.colorScheme.primary)
-            }
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Настройки", tint = MaterialTheme.colorScheme.primary)
-            }
-        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = refreshing,

@@ -21,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +105,12 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
             }
         },
     ) { padding ->
+        CompositionLocalProvider(
+            LocalTopBarActions provides TopBarActions(
+                onSearch = { nav.navigate("search") },
+                onSettings = { nav.navigate("settings") },
+            ),
+        ) {
         NavHost(
             navController = nav,
             startDestination = startRoute ?: "home",
@@ -214,6 +221,7 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
                     onOpenDivision = { nav.navigate("division/$it") },
                 )
             }
+        }
         }
     }
 }
