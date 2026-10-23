@@ -86,8 +86,14 @@ const S = {
   playerPerson: new Map(),  // playerId -> personKey
   favTeams: new Set(JSON.parse(localStorage.getItem('vp.favTeams') || '[]')),
   favPersons: new Set(JSON.parse(localStorage.getItem('vp.favPersons') || '[]')),
+  splits: new Set(JSON.parse(localStorage.getItem('vp.splits') || '[]')),
+  merges: new Map(Object.entries(JSON.parse(localStorage.getItem('vp.merges') || '{}'))),
   gender: 'all',
   year: 0,
+  calMode: 'list',
+  calMonth: null,
+  calDay: null,
+  calDivision: 0,
   searchQuery: '',
 };
 
@@ -97,14 +103,15 @@ function saveFavorites() {
 }
 
 function isFavTeam(id) { return S.favTeams.has(id); }
-function isFavPerson(key) { return S.favPersons.has(key); }
+function isFavPerson(key) { return S.favPersons.has(resolveKey(key)); }
 function toggleFavTeam(id) {
   if (S.favTeams.has(id)) S.favTeams.delete(id); else S.favTeams.add(id);
   saveFavorites();
   render();
 }
 function toggleFavPerson(key) {
-  if (S.favPersons.has(key)) S.favPersons.delete(key); else S.favPersons.add(key);
+  const resolved = resolveKey(key);
+  if (S.favPersons.has(resolved)) S.favPersons.delete(resolved); else S.favPersons.add(resolved);
   saveFavorites();
   render();
 }
@@ -112,13 +119,91 @@ function toggleFavPerson(key) {
 function trackedTeamIds() {
   const ids = new Set(S.favTeams);
   for (const key of S.favPersons) {
-    const person = S.persons.get(key);
+    const person = S.persons.get(resolveKey(key));
     if (person) for (const team of person.teams) ids.add(team.id);
   }
   return ids;
 }
 
 /* ------------------------------------------------------------------ data */
+
+const UI_DEFAULTS = { gender: 'all', year: 0, calDivision: 0, calMode: 'list', calMonth: null, calDay: null };
+
+function restoreUi() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem('vp.ui') || '{}');
+  } catch (error) {
+    saved = {};
+  }
+  Object.assign(S, UI_DEFAULTS, saved);
+}
+
+function saveUi() {
+  localStorage.setItem('vp.ui', JSON.stringify({
+    gender: S.gender,
+    year: S.year,
+    calDivision: S.calDivision,
+    calMode: S.calMode,
+    calMonth: S.calMonth,
+    calDay: S.calDay,
+  }));
+}
+
+function resetUi() {
+  Object.assign(S, UI_DEFAULTS);
+  saveUi();
+  render();
+}
+
+function saveOverrides() {
+  localStorage.setItem('vp.splits', JSON.stringify([...S.splits]));
+  localStorage.setItem('vp.merges', JSON.stringify(Object.fromEntries(S.merges)));
+}
+
+function resolveKey(key) {
+  let current = key;
+  const seen = new Set();
+  while (S.merges.has(current) && !seen.has(current)) {
+    seen.add(current);
+    current = S.merges.get(current);
+  }
+  return current;
+}
+
+function effectiveKey(player) {
+  if (S.splits.has(player.id)) return 'id:' + player.id;
+  return resolveKey(personKey(player.name, player.birthYear));
+}
+
+function baseKey(player) {
+  return personKey(player.name, player.birthYear);
+}
+
+function splitPlayer(player) {
+  S.splits.add(player.id);
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
+
+function mergePerson(fromKey, toKey) {
+  const from = resolveKey(fromKey);
+  const to = resolveKey(toKey);
+  if (from === to) return;
+  S.merges.set(from, to);
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
+
+function resetOverrides() {
+  S.splits.clear();
+  S.merges.clear();
+  saveOverrides();
+  buildIndexes(S.data);
+  render();
+}
 
 function buildIndexes(data) {
   S.divisions.clear();
@@ -130,7 +215,7 @@ function buildIndexes(data) {
   for (const t of data.teams) S.teams.set(t.id, t);
 
   for (const p of data.players) {
-    const key = personKey(p.name, p.birthYear);
+    const key = effectiveKey(p);
     let person = S.persons.get(key);
     if (!person) {
       person = { key, name: p.name, birthYear: p.birthYear, photo: p.photo, players: [], teams: [] };
@@ -142,13 +227,49 @@ function buildIndexes(data) {
     if (team && !person.teams.some(t => t.id === team.id)) person.teams.push(team);
   }
   for (const p of data.players) {
-    S.playerPerson.set(p.id, personKey(p.name, p.birthYear));
+    S.playerPerson.set(p.id, effectiveKey(p));
   }
 }
 
-async function loadData() {
+async function clearSiteCaches() {
+  const controller = navigator.serviceWorker && navigator.serviceWorker.controller;
+  if (controller) {
+    controller.postMessage({ type: 'CLEAR' });
+    return;
+  }
   try {
-    const response = await fetch('data.json', { cache: 'no-cache' });
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+  } catch (error) {
+    // кэш может быть недоступен — не мешаем обновлению
+  }
+}
+
+async function refreshAll(button) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Обновляем…';
+  try {
+    await clearSiteCaches();
+    await loadData(true);
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        await registration.update();
+        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }
+    render();
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+async function loadData(fresh) {
+  const url = fresh ? `data.json?ts=${Date.now()}` : 'data.json';
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     S.data = await response.json();
     buildIndexes(S.data);
@@ -163,14 +284,36 @@ async function loadData() {
       return;
     }
   }
-  document.addEventListener('online', updateOnline);
+  document.addEventListener('online', () => { updateOnline(); loadData(true); });
   document.addEventListener('offline', updateOnline);
   updateOnline();
   render();
 }
 
+let onlineTimer = null;
+
 function updateOnline() {
-  $('#offline').hidden = navigator.onLine;
+  const bar = $('#offline');
+  const online = navigator.onLine;
+  if (bar) bar.hidden = online;
+
+  if (online) {
+    if (onlineTimer) {
+      clearInterval(onlineTimer);
+      onlineTimer = null;
+    }
+    return;
+  }
+
+  // пока сети нет — проверяем её появление сами
+  if (!onlineTimer) {
+    onlineTimer = setInterval(() => {
+      if (navigator.onLine) {
+        updateOnline();
+        loadData(true);
+      }
+    }, 4000);
+  }
 }
 
 /* ------------------------------------------------------------------ games */
@@ -181,6 +324,84 @@ function gamesOfDivision(divisionId) {
 
 function isChampionship(division) {
   return !!division && division.competition.toLowerCase().includes('чемпионат');
+}
+
+const ICON_PATHS = {
+  home: '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 9.5h17M8 3.5V7M16 3.5V7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  list: '<path d="M8 6.5h12M8 12h12M8 17.5h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="4.2" cy="6.5" r="1.3" fill="currentColor"/><circle cx="4.2" cy="12" r="1.3" fill="currentColor"/><circle cx="4.2" cy="17.5" r="1.3" fill="currentColor"/>',
+  pin: '<path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  star: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="currentColor"/>',
+  starOutline: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  whistle: '<path d="M4 10h9l3-3h4v5l-4 2H9a5 5 0 1 1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+};
+
+function icon(name, cls) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', cls || 'ico');
+  svg.innerHTML = ICON_PATHS[name] || '';
+  return svg;
+}
+
+function starButton(isOn, onToggle) {
+  const button = el('button', 'star');
+  button.append(icon(isOn ? 'star' : 'starOutline'));
+  button.addEventListener('click', onToggle);
+  return button;
+}
+
+function iconButton(name, onTap) {
+  const button = el('button', 'toolbtn');
+  button.append(icon(name));
+  button.addEventListener('click', onTap);
+  return button;
+}
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+const GENDER_COLORS = { boys: '#1b4f9c', girls: '#c2417f', men: '#2f7d4f', women: '#e8862e' };
+
+function genderColor(division) {
+  return GENDER_COLORS[division ? division.gender : ''] || '#1b4f9c';
+}
+
+function compareDivisions(a, b) {
+  const rank = division => (division.competition.toLowerCase().includes('первенство') ? 0 : 1);
+  return rank(a) - rank(b)
+    || (a.birthYear || 0) - (b.birthYear || 0)
+    || (a.teamLabel || 0) - (b.teamLabel || 0);
+}
+
+function miniLogo(team) {
+  if (team && team.logo) {
+    const img = el('img', 'logo mini');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => img.remove());
+    img.src = team.logo;
+    return img;
+  }
+  return el('span', 'logo mini');
+}
+
+function teamNameCell(team, label) {
+  const cell = el('div', 'namecell');
+  cell.append(miniLogo(team));
+  cell.append(el('span', 'ellipsis', label));
+  return cell;
+}
+
+function chevron() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'chev');
+  svg.innerHTML = '<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  return svg;
 }
 
 const GENDER_RU = { boys: 'Юноши', girls: 'Девушки', men: 'Мужчины', women: 'Женщины' };
@@ -211,7 +432,9 @@ function gameCard(game, options = {}) {
   const division = S.divisions.get(game.divisionId);
   const card = el('div', 'game');
   const comp = el('div', 'comp');
-  comp.append(el('span', 'dot', '●'), document.createTextNode(' ' + (division ? `${division.competition} · ${divisionSubtitle(division)}` : '')));
+  const dot = el('span', 'dot');
+  dot.style.background = genderColor(division);
+  comp.append(dot, document.createTextNode(division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
   card.append(comp);
 
   const line = el('div', 'line');
@@ -228,9 +451,11 @@ function gameCard(game, options = {}) {
     const logo = S.teams.get(side === 'home' ? game.homeId : game.awayId);
     if (logo && logo.logo) {
       const img = el('img');
-      img.src = logo.logo;
       img.alt = '';
       img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.src = logo.logo;
+      img.addEventListener('error', () => img.remove());
       row.append(img);
     }
     row.append(el('span', null, side === 'home' ? game.home : game.away));
@@ -434,19 +659,11 @@ function screenHome() {
   const updatedRow = el('div', 'row');
   const updatedText = el('div', 'grow');
   updatedText.append(el('div', 'small muted', 'Последнее обновление'));
-  const generated = S.data.generatedAt ? new Date(S.data.generatedAt) : null;
-  const stamp = generated
-    ? `${String(generated.getDate()).padStart(2, '0')}.${String(generated.getMonth() + 1).padStart(2, '0')}.${generated.getFullYear()} в ${String(generated.getHours()).padStart(2, '0')}:${String(generated.getMinutes()).padStart(2, '0')}`
-    : 'нет данных';
-  updatedText.append(el('div', 'strong', stamp));
-  const sheetUsed = (S.data.counts && S.data.counts.datesFromSheet > 0) || S.data.games.some(g => g.dateSource === 'sheet');
-  updatedText.append(el('div', 'small muted', sheetUsed ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
+  updatedText.append(el('div', 'strong', generatedText()));
+  updatedText.append(el('div', 'small muted', sheetUsed() ? 'Данные: pitervolley.ru + volleyreferee.spb.ru' : 'Данные: pitervolley.ru'));
   updatedRow.append(updatedText);
-  const refresh = el('button', 'chip on', 'Обновить');
-  refresh.addEventListener('click', async () => {
-    refresh.textContent = 'Обновляем…';
-    await loadData();
-  });
+  const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
+  refresh.addEventListener('click', () => refreshAll(refresh));
   updatedRow.append(refresh);
   updated.append(updatedRow);
   wrap.append(updated);
@@ -462,14 +679,14 @@ function screenHome() {
       text.append(el('div', null, team.name));
       const division = S.divisions.get(team.divisionId);
       text.append(el('div', 'small muted ellipsis', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
     wrap.append(card);
   }
 
-  const favPersonList = [...S.favPersons].map(key => S.persons.get(key)).filter(Boolean);
+  const favPersonList = [...S.favPersons].map(key => S.persons.get(resolveKey(key))).filter(Boolean);
   if (favPersonList.length) {
     wrap.append(el('h2', 'section', 'Мои игроки'));
     const card = el('div', 'card flush');
@@ -479,7 +696,7 @@ function screenHome() {
       const text = el('div', 'grow');
       text.append(el('div', null, person.name));
       text.append(el('div', 'small muted', person.teams.length > 1 ? teamsWord(person.teams.length) : (person.teams[0] ? person.teams[0].name : '')));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(person.key)}`; });
       card.append(row);
     }
@@ -491,16 +708,23 @@ function screenHome() {
     for (const game of myGames) wrap.append(gameCard(game));
   }
 
-  wrap.append(el('h2', 'section', 'Ближайшие игры'));
+  const upcomingTitle = el('h2', 'section', 'Ближайшие игры');
+  const allGames = el('button', 'link', 'Все игры');
+  allGames.addEventListener('click', () => { location.hash = '#/calendar'; });
+  upcomingTitle.append(allGames);
+  wrap.append(upcomingTitle);
   if (!upcoming.length) wrap.append(el('div', 'empty', 'Ближайших игр пока нет'));
-  for (const game of upcoming) wrap.append(gameCard(game));
+  for (const game of upcoming.slice(0, 6)) wrap.append(gameCard(game));
 
   wrap.append(el('h2', 'section', 'Соревнования'));
   const competitions = el('div', 'stats');
   for (const [title, gender, note] of [['Первенство', 'boys', 'Юноши и девушки'], ['Чемпионат', 'men', 'Мужчины и женщины']]) {
     const count = S.data.divisions.filter(d => d.competition.includes(title)).length;
     const box = el('div', 'stat');
-    box.append(el('b', null, String(count)), el('span', null, 'дивизионов'));
+    const head = el('div', 'stathead');
+    head.append(icon('calendar'), el('b', null, String(count)));
+    box.append(head);
+    box.append(el('span', null, 'дивизионов'));
     box.append(el('div', 'small muted', note));
     box.addEventListener('click', () => { S.gender = gender; location.hash = '#/divisions'; render(); });
     competitions.append(box);
@@ -510,13 +734,42 @@ function screenHome() {
   wrap.append(el('h2', 'section', 'Залы'));
   const venueCard = el('div', 'card');
   const venueRow = el('div', 'row');
+  const pin = el('div', 'roundicon');
+  pin.append(icon('pin'));
+  venueRow.append(pin);
   const venueText = el('div', 'grow');
   venueText.append(el('div', 'strong', 'Адреса игр'));
   venueText.append(el('div', 'small muted', venuesWord(venues.size) + ' · расписание по каждому'));
-  venueRow.append(venueText, el('span', 'chev', '›'));
+  venueRow.append(venueText, chevron());
   venueCard.append(venueRow);
   venueCard.addEventListener('click', () => { location.hash = '#/venues'; });
   wrap.append(venueCard);
+
+  wrap.append(el('h2', 'section', 'Дивизионы'));
+  const divisionsCard = el('div', 'card');
+  const groups = [
+    ['boys', 'Юноши'],
+    ['girls', 'Девушки'],
+    ['men', 'Мужчины'],
+    ['women', 'Женщины'],
+  ];
+  for (const [gender, label] of groups) {
+    const list = S.data.divisions
+      .filter(d => d.gender === gender)
+      .sort(compareDivisions);
+    if (!list.length) continue;
+    const block = el('div', 'divgroup');
+    block.append(el('div', 'divlabel', label));
+    const row = el('div', 'chips inner');
+    for (const division of list) {
+      const chip = el('button', 'chip', division.birthYear ? String(division.birthYear) : `${division.teamLabel}-я`);
+      chip.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
+      row.append(chip);
+    }
+    block.append(row);
+    divisionsCard.append(block);
+  }
+  wrap.append(divisionsCard);
 
   return wrap;
 }
@@ -524,9 +777,11 @@ function screenHome() {
 function teamLogo(team) {
   if (team && team.logo) {
     const img = el('img', 'logo');
-    img.src = team.logo;
     img.alt = '';
     img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = team.logo;
+    img.addEventListener('error', () => img.remove());
     return img;
   }
   return el('div', 'avatar');
@@ -535,9 +790,11 @@ function teamLogo(team) {
 function personAvatar(person) {
   if (person && person.photo) {
     const img = el('img', 'avatar');
-    img.src = person.photo;
     img.alt = '';
     img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = person.photo;
+    img.addEventListener('error', () => img.remove());
     return img;
   }
   return el('div', 'avatar');
@@ -546,7 +803,7 @@ function personAvatar(person) {
 function screenDivisions() {
   const wrap = document.createDocumentFragment();
   const genders = [
-    ['all', 'Все'], ['boys', 'Юноши'], ['girls', 'Девушки'], ['men', 'Мужчины'], ['women', 'Женщины'],
+    ['all', 'Все'], ['fav', 'Мои'], ['boys', 'Юноши'], ['girls', 'Девушки'], ['men', 'Мужчины'], ['women', 'Женщины'],
   ];
   const chips = el('div', 'chips');
   for (const [value, label] of genders) {
@@ -556,9 +813,20 @@ function screenDivisions() {
   }
   wrap.append(chips);
 
+  const tracked = trackedTeamIds();
+  const favouriteDivisionIds = new Set(
+    [...tracked].map(id => S.teams.get(id)).filter(Boolean).map(team => team.divisionId),
+  );
   const list = S.data.divisions
-    .filter(d => S.gender === 'all' || d.gender === S.gender)
-    .sort((a, b) => (a.birthYear || 0) - (b.birthYear || 0) || (a.teamLabel || 0) - (b.teamLabel || 0));
+    .filter(d => {
+      if (S.gender === 'all') return true;
+      if (S.gender === 'fav') return favouriteDivisionIds.has(d.id);
+      return d.gender === S.gender;
+    })
+    .sort(compareDivisions);
+  if (S.gender === 'fav' && !list.length) {
+    wrap.append(el('div', 'empty', 'Пока ничего не выбрано. Добавьте команду или игрока звёздочкой — их дивизионы появятся здесь.'));
+  }
 
   if (S.gender === 'boys' || S.gender === 'girls') {
     const years = [...new Set(list.map(d => d.birthYear))].filter(Boolean);
@@ -613,7 +881,8 @@ function screenDivision(divisionId, tab) {
     rows.forEach((row, index) => {
       const tr = el('tr');
       tr.append(el('td', null, String(index + 1)));
-      const name = el('td', 'name', row.team.name);
+      const name = el('td', 'name');
+      name.append(teamNameCell(row.team, row.team.name));
       name.addEventListener('click', () => { location.hash = `#/team/${row.team.id}`; });
       tr.append(name);
       tr.append(el('td', null, String(row.played)));
@@ -638,7 +907,9 @@ function screenDivision(divisionId, tab) {
     rows.forEach((row, index) => {
       const tr = el('tr');
       tr.append(el('td', null, String(index + 1)));
-      tr.append(el('td', 'name', row.name));
+      const clubCell = el('td', 'name');
+      clubCell.append(teamNameCell(row.teams[0], row.name));
+      tr.append(clubCell);
       tr.append(el('td', null, String(row.played)));
       tr.append(el('td', null, String(row.wins)));
       tr.append(el('td', null, String(row.losses)));
@@ -669,7 +940,7 @@ function screenDivision(divisionId, tab) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', playersWord(S.data.players.filter(p => p.teamId === team.id).length)));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -688,11 +959,14 @@ function screenTeam(teamId) {
   profile.append(teamLogo(team));
   const info = el('div');
   info.append(el('h3', null, team.name));
-  info.append(el('div', 'muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
+  const divisionLine = el('div', 'muted', division ? `${division.competition} · ${divisionSubtitle(division)} ›` : '');
+  if (division) {
+    divisionLine.style.cursor = 'pointer';
+    divisionLine.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
+  }
+  info.append(divisionLine);
   profile.append(info);
-  const star = el('button', 'star' + (isFavTeam(team.id) ? ' on' : ''), isFavTeam(team.id) ? '★' : '☆');
-  star.addEventListener('click', () => toggleFavTeam(team.id));
-  profile.append(star);
+  profile.append(starButton(isFavTeam(team.id), () => toggleFavTeam(team.id)));
   wrap.append(profile);
 
   const players = S.data.players.filter(p => p.teamId === team.id);
@@ -703,18 +977,16 @@ function screenTeam(teamId) {
     card.append(el('div', 'small muted', 'Федерация заполняет составы постепенно — они появляются на pitervolley.ru.'));
     wrap.append(card);
   }
-  const grid = el('div', 'card flush');
+  const grid = el('div', 'players');
   for (const player of players) {
     const key = S.playerPerson.get(player.id);
     const person = S.persons.get(key);
-    const row = el('div', 'row pad');
-    row.append(personAvatar(person || player));
-    const text = el('div', 'grow');
-    text.append(el('div', null, player.name));
-    if (player.birthYear) text.append(el('div', 'small muted', `${player.birthYear} г.р.`));
-    row.append(text, el('span', 'chev', '›'));
-    row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}`; });
-    grid.append(row);
+    const card = el('div', 'player');
+    card.append(personAvatar(person || player));
+    card.append(el('div', 'playername', player.name));
+    if (player.birthYear) card.append(el('div', 'small muted', `${player.birthYear} г.р.`));
+    card.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(key)}/${player.id}`; });
+    grid.append(card);
   }
   wrap.append(grid);
 
@@ -728,19 +1000,19 @@ function screenTeam(teamId) {
   return wrap;
 }
 
-function screenPlayer(key) {
+function screenPlayer(key, playerId) {
   const person = S.persons.get(key);
   if (!person) return el('div', 'empty', 'Игрок не найден');
+  const player = playerId ? S.data.players.find(item => item.id === playerId) : null;
   const wrap = document.createDocumentFragment();
+
   const profile = el('div', 'profile');
   profile.append(personAvatar(person));
   const info = el('div');
   info.append(el('h3', null, person.name));
   if (person.birthYear) info.append(el('div', 'muted', `${person.birthYear} г.р.`));
   profile.append(info);
-  const star = el('button', 'star' + (isFavPerson(key) ? ' on' : ''), isFavPerson(key) ? '★' : '☆');
-  star.addEventListener('click', () => toggleFavPerson(key));
-  profile.append(star);
+  profile.append(starButton(isFavPerson(key), () => toggleFavPerson(key)));
   wrap.append(profile);
 
   if (person.teams.length) {
@@ -753,15 +1025,106 @@ function screenPlayer(key) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
     wrap.append(card);
   }
 
-  wrap.append(el('div', 'notice', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));
+  const canSplit = player && person.players.length > 1 && !S.splits.has(player.id);
+  const edited = person.key.startsWith('id:') || person.players.some(item =>
+    S.splits.has(item.id) || S.merges.has(baseKey(item)) || person.key !== baseKey(item));
+  {
+    wrap.append(el('h2', 'section', 'Если это ошибка'));
+    const tools = el('div', 'card');
+    tools.append(el('div', 'small muted', 'Федерация иногда пишет одно имя по-разному или, наоборот, склеивает разных детей. Здесь это можно исправить.'));
+    const buttons = el('div', 'buttonrow');
+
+    if (canSplit) {
+      const split = el('button', 'btn btn-ghost', 'Это разные люди');
+      split.addEventListener('click', () => {
+        const target = 'id:' + player.id;
+        splitPlayer(player);
+        location.hash = `#/player/${encodeURIComponent(target)}/${player.id}`;
+      });
+      buttons.append(split);
+    }
+
+    const link = el('button', 'btn', 'Связать с игроком');
+    link.addEventListener('click', () => openMergeDialog(resolveKey(key)));
+    buttons.append(link);
+    tools.append(buttons);
+    wrap.append(tools);
+  }
+
+  if (edited) {
+    const notice = el('div', 'notice');
+    notice.append(el('div', null, 'Есть ручные правки группировки игроков. От этого зависят счётчик игроков, избранное и список игр.'));
+    const reset = el('button', 'linkish', 'Сбросить все правки');
+    reset.addEventListener('click', () => { resetOverrides(); location.hash = '#/player/' + encodeURIComponent(person.key); });
+    notice.append(reset);
+    wrap.append(notice);
+  }
+
+  wrap.append(el('div', 'caption', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));
   return wrap;
+}
+
+function openMergeDialog(fromKey) {
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', 'Связать с игроком'));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const box = el('div', 'searchbox');
+  const input = el('input');
+  input.type = 'search';
+  input.placeholder = 'Имя игрока';
+  box.append(input);
+  sheet.append(box);
+
+  const results = el('div', 'results');
+  sheet.append(results);
+
+  const paint = value => {
+    const needle = fold(value);
+    results.replaceChildren();
+    const people = [...S.persons.values()]
+      .filter(person => resolveKey(person.key) !== resolveKey(fromKey))
+      .filter(person => !needle || fold(person.name).includes(needle))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      .slice(0, 30);
+    if (!people.length) {
+      results.append(el('div', 'empty', 'Никого не нашли'));
+      return;
+    }
+    for (const person of people) {
+      const row = el('div', 'row pad');
+      row.append(personAvatar(person));
+      const text = el('div', 'grow');
+      text.append(el('div', null, person.name));
+      text.append(el('div', 'small muted', person.birthYear ? `${person.birthYear} г.р.` : ''));
+      row.append(text);
+      row.addEventListener('click', () => {
+        mergePerson(fromKey, person.key);
+        overlay.remove();
+        location.hash = `#/player/${encodeURIComponent(resolveKey(person.key))}`;
+      });
+      results.append(row);
+    }
+  };
+  paint('');
+
+  input.addEventListener('input', () => paint(input.value));
+  close.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
 }
 
 function screenGame(divisionId, gameId) {
@@ -827,46 +1190,147 @@ function screenGame(divisionId, gameId) {
 
 function screenCalendar() {
   const wrap = document.createDocumentFragment();
+
+  const toolbar = el('div', 'toolbar');
+  const todayBtn = el('button', 'chip', 'Сегодня');
+  todayBtn.addEventListener('click', () => {
+    const now = new Date();
+    S.calMonth = monthKey(now);
+    S.calDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    S.calMode = 'month';
+    render();
+  });
+  toolbar.append(el('div', 'grow'), todayBtn,
+    iconButton('list', () => { S.calMode = 'list'; render(); }),
+    iconButton('calendar', () => { S.calMode = 'month'; if (!S.calMonth) S.calMonth = monthKey(new Date()); render(); }));
+  wrap.append(toolbar);
+
   const genders = [['all', 'Все'], ['fav', 'Мои'], ['boys', 'Юноши'], ['girls', 'Девушки'], ['men', 'Мужчины'], ['women', 'Женщины']];
   const chips = el('div', 'chips');
   for (const [value, label] of genders) {
     const chip = el('button', 'chip' + (S.gender === value ? ' on' : ''), label);
-    chip.addEventListener('click', () => { S.gender = value; S.year = 0; render(); });
+    chip.addEventListener('click', () => { S.gender = value; S.year = 0; S.calDivision = 0; render(); });
     chips.append(chip);
   }
   wrap.append(chips);
 
+  let divisionFilter = () => true;
+  if (S.gender === 'boys' || S.gender === 'girls' || S.gender === 'men' || S.gender === 'women') {
+    const list = S.data.divisions
+      .filter(d => d.gender === S.gender)
+      .sort(compareDivisions);
+    if (list.length) {
+      const row = el('div', 'chips');
+      const all = el('button', 'chip' + (S.calDivision === 0 ? ' on' : ''), 'Все');
+      all.addEventListener('click', () => { S.calDivision = 0; render(); });
+      row.append(all);
+      for (const division of list) {
+        const chip = el('button', 'chip' + (S.calDivision === division.id ? ' on' : ''), division.birthYear ? String(division.birthYear) : `${division.teamLabel}-я`);
+        chip.addEventListener('click', () => { S.calDivision = division.id; render(); });
+        row.append(chip);
+      }
+      wrap.append(row);
+      if (S.calDivision) divisionFilter = game => game.divisionId === S.calDivision;
+    }
+  }
+
   const tracked = trackedTeamIds();
-  const filterGame = game => {
+  const byGender = game => {
     if (S.gender === 'fav') return tracked.has(game.homeId) || tracked.has(game.awayId);
     if (S.gender === 'all') return true;
     const division = S.divisions.get(game.divisionId);
     return division && division.gender === S.gender;
   };
+  const games = S.data.games.filter(game => byGender(game) && divisionFilter(game));
 
-  const games = S.data.games.filter(filterGame);
   const byDate = new Map();
   for (const game of games) {
     if (!game.date) continue;
     if (!byDate.has(game.date)) byDate.set(game.date, []);
     byDate.get(game.date).push(game);
   }
-  const dates = [...byDate.keys()].sort();
+  for (const list of byDate.values()) list.sort(sortGames);
+
   const undated = games.filter(g => !g.date).sort((a, b) => a.divisionId - b.divisionId);
 
-  const future = dates.filter(d => d >= todayIso());
-  const start = future.length ? future[0] : dates[dates.length - 1];
-
-  if (!dates.length && !undated.length) wrap.append(el('div', 'empty', 'По выбранным фильтрам игр нет'));
-  for (const date of dates.filter(d => d >= start)) {
-    wrap.append(el('h2', 'section', fullDate(date)));
-    for (const game of byDate.get(date).sort(sortGames)) {
-      wrap.append(gameCard(game, { hideDate: true }));
+  if (S.calMode === 'month') {
+    wrap.append(renderMonth(byDate));
+  } else {
+    const dates = [...byDate.keys()].sort();
+    if (!dates.length && !undated.length) wrap.append(el('div', 'empty', 'По выбранным фильтрам игр нет'));
+    const future = dates.filter(d => d >= todayIso());
+    const startDate = future.length ? future[0] : dates[dates.length - 1];
+    for (const date of dates.filter(d => d >= startDate)) {
+      wrap.append(el('h2', 'section', fullDate(date)));
+      for (const game of byDate.get(date)) wrap.append(gameCard(game, { hideDate: true }));
     }
   }
+
   if (undated.length) {
     wrap.append(el('h2', 'section', `Дата не назначена · ${undated.length}`));
     for (const game of undated) wrap.append(gameCard(game));
+  }
+  return wrap;
+}
+
+function renderMonth(byDate) {
+  const wrap = document.createDocumentFragment();
+  const key = S.calMonth || monthKey(new Date());
+  const [year, month] = key.split('-').map(Number);
+
+  const head = el('div', 'monthhead');
+  const prev = iconButton('list', () => {});
+  prev.remove();
+  const prevBtn = el('button', 'chip', '‹');
+  prevBtn.addEventListener('click', () => {
+    const d = new Date(year, month - 2, 1);
+    S.calMonth = monthKey(d);
+    S.calDay = null;
+    render();
+  });
+  const nextBtn = el('button', 'chip', '›');
+  nextBtn.addEventListener('click', () => {
+    const d = new Date(year, month, 1);
+    S.calMonth = monthKey(d);
+    S.calDay = null;
+    render();
+  });
+  const monthNames = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  head.append(prevBtn, el('div', 'grow center strong', `${monthNames[month - 1]} ${year}`), nextBtn);
+  wrap.append(head);
+
+  const weekdays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  const week = el('div', 'week');
+  for (const name of weekdays) week.append(el('div', 'wd', name));
+  wrap.append(week);
+
+  const first = new Date(year, month - 1, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const days = new Date(year, month, 0).getDate();
+  const selected = S.calDay || (todayIso().startsWith(key) ? todayIso() : null);
+  const grid = el('div', 'month');
+  for (let i = 0; i < offset; i++) grid.append(el('div', 'cell empty'));
+  for (let day = 1; day <= days; day++) {
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const cell = el('button', 'cell' + (byDate.has(iso) ? ' has' : '') + (selected === iso ? ' sel' : ''));
+    cell.append(el('span', null, String(day)));
+    if (byDate.has(iso)) cell.append(el('i', 'dot'));
+    cell.addEventListener('click', () => {
+      S.calDay = iso;
+      S.calMonth = iso.slice(0, 7);
+      render();
+    });
+    grid.append(cell);
+  }
+  wrap.append(grid);
+
+  if (selected) {
+    wrap.append(el('h2', 'section', fullDate(selected)));
+    const list = byDate.get(selected) || [];
+    if (!list.length) wrap.append(el('div', 'empty', 'В этот день игр нет'));
+    for (const game of list) wrap.append(gameCard(game, { hideDate: true }));
+  } else {
+    wrap.append(el('div', 'empty', 'Выберите день с отметкой'));
   }
   return wrap;
 }
@@ -885,7 +1349,7 @@ function screenVenues() {
     const text = el('div', 'grow');
     text.append(el('div', null, venue));
     text.append(el('div', 'small muted', gamesWord(count)));
-    row.append(text, el('span', 'chev', '›'));
+    row.append(text, chevron());
     row.addEventListener('click', () => { location.hash = `#/venue/${encodeURIComponent(venue)}`; });
     card.append(row);
   }
@@ -949,7 +1413,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, team.name));
       text.append(el('div', 'small muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
       card.append(row);
     }
@@ -965,7 +1429,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, person.name));
       text.append(el('div', 'small muted', person.birthYear ? `${person.birthYear} г.р.` : ''));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/player/${encodeURIComponent(person.key)}`; });
       card.append(row);
     }
@@ -980,7 +1444,7 @@ function buildSearchResults(query) {
       const text = el('div', 'grow');
       text.append(el('div', null, division.competition));
       text.append(el('div', 'small muted', divisionSubtitle(division)));
-      row.append(text, el('span', 'chev', '›'));
+      row.append(text, chevron());
       row.addEventListener('click', () => { location.hash = `#/division/${division.id}`; });
       card.append(row);
     }
@@ -996,24 +1460,93 @@ function buildSearchResults(query) {
 function screenSettings() {
   const wrap = document.createDocumentFragment();
 
+  wrap.append(el('h2', 'section', 'Данные'));
+  const dataGroup = el('div', 'group');
+  const updated = el('div', 'row pad');
+  const updatedText = el('div', 'grow');
+  updatedText.append(el('div', 'strong', 'Последнее обновление'));
+  updatedText.append(el('div', 'small muted', generatedText()));
+  updated.append(updatedText);
+  const refresh = el('button', 'btn btn-accent', 'Обновить');
+  refresh.addEventListener('click', () => refreshAll(refresh));
+  updated.append(refresh);
+  dataGroup.append(updated);
+
+  const source = el('div', 'row pad');
+  const sourceText = el('div', 'grow');
+  sourceText.append(el('div', 'strong', 'Источник'));
+  sourceText.append(el('div', 'small muted', sheetUsed() ? 'pitervolley.ru + volleyreferee.spb.ru' : 'pitervolley.ru'));
+  source.append(sourceText);
+  dataGroup.append(source);
+
+  const counts = el('div', 'row pad');
+  const countsText = el('div', 'grow');
+  countsText.append(el('div', 'strong', 'В базе'));
+  countsText.append(el('div', 'small muted', `${S.data.divisions.length} дивизионов · ${teamsWord(S.data.teams.length)} · ${playersWord(S.persons.size)}`));
+  counts.append(countsText);
+  dataGroup.append(counts);
+  wrap.append(dataGroup);
+
   wrap.append(el('h2', 'section', 'Избранное'));
-  const card = el('div', 'card');
-  card.append(el('div', null, `Команд: ${S.favTeams.size}, игроков: ${S.favPersons.size}`));
-  const reset = el('button', 'chip', 'Сбросить избранное');
-  reset.style.marginTop = '10px';
-  reset.addEventListener('click', () => {
-    S.favTeams.clear();
-    S.favPersons.clear();
-    saveFavorites();
-    render();
-  });
-  card.append(reset);
-  wrap.append(card);
+  const favGroup = el('div', 'group');
+  const favRow = el('div', 'row pad');
+  const favText = el('div', 'grow');
+  favText.append(el('div', 'strong', 'Мои команды и игроки'));
+  favText.append(el('div', 'small muted', `${teamsWord(S.favTeams.size)}, ${playersWord(S.favPersons.size)}`));
+  favRow.append(favText);
+  favGroup.append(favRow);
+
+  if (S.favTeams.size || S.favPersons.size) {
+    const resetRow = el('div', 'row pad');
+    const reset = el('button', 'btn btn-ghost', 'Сбросить избранное');
+    reset.addEventListener('click', () => {
+      S.favTeams.clear();
+      S.favPersons.clear();
+      saveFavorites();
+      render();
+    });
+    resetRow.append(reset);
+    favGroup.append(resetRow);
+  }
+  wrap.append(favGroup);
+
+  wrap.append(el('h2', 'section', 'Настройки экрана'));
+  const screenGroup = el('div', 'group');
+  const screenRow = el('div', 'row pad');
+  const screenText = el('div', 'grow');
+  screenText.append(el('div', 'strong', 'Фильтры и вид календаря'));
+  screenText.append(el('div', 'small muted', 'Сохраняются на этом устройстве: выбранный пол, год, список или месяц.'));
+  screenRow.append(screenText);
+  screenGroup.append(screenRow);
+  const resetRow = el('div', 'row pad');
+  const resetFilters = el('button', 'btn btn-ghost', 'Сбросить фильтры');
+  resetFilters.addEventListener('click', () => resetUi());
+  resetRow.append(resetFilters);
+  screenGroup.append(resetRow);
+  wrap.append(screenGroup);
 
   wrap.append(el('h2', 'section', 'Напоминания'));
   const notes = el('div', 'card');
-  notes.append(el('div', 'small muted', 'В веб-версии напоминаний пока нет. На Android-приложении они приходят в 18:00 за день до игры.'));
+  notes.append(el('div', 'small muted', 'В веб-версии напоминаний нет: браузер не умеет будить приложение по расписанию так же надёжно, как Android. В приложении для Android напоминание приходит в 18:00 за день до игры.'));
   wrap.append(notes);
+
+  wrap.append(el('h2', 'section', 'Установка на iPhone'));
+  const install = el('div', 'card');
+  install.append(el('div', 'small muted', 'Safari → «Поделиться» → «На экран Домой». Появится иконка, приложение откроется без адресной строки и будет работать офлайн.'));
+  wrap.append(install);
+
+  wrap.append(el('h2', 'section', 'Ручная группировка игроков'));
+  const grouping = el('div', 'card');
+  grouping.append(el('div', 'small muted', 'Правки на карточке игрока: «Это разные люди» и «Связать с игроком». Сейчас правок: ' +
+    `${S.splits.size} ${plural(S.splits.size, 'разделение', 'разделения', 'разделений')}, ` +
+    `${S.merges.size} ${plural(S.merges.size, 'объединение', 'объединения', 'объединений')}.`));
+  if (S.splits.size || S.merges.size) {
+    const reset = el('button', 'btn btn-ghost', 'Сбросить все правки');
+    reset.style.marginTop = '10px';
+    reset.addEventListener('click', () => resetOverrides());
+    grouping.append(reset);
+  }
+  wrap.append(grouping);
 
   wrap.append(el('h2', 'section', 'О проекте'));
   const about = el('div', 'card about');
@@ -1025,12 +1558,19 @@ function screenSettings() {
   about.append(mail);
   wrap.append(about);
 
-  wrap.append(el('h2', 'section', 'Установка на iPhone'));
-  const install = el('div', 'card');
-  install.append(el('div', 'small muted', 'Откройте сайт в Safari → «Поделиться» → «На экран Домой». Приложение появится как отдельная иконка и будет работать офлайн.'));
-  wrap.append(install);
-
   return wrap;
+}
+
+function generatedText() {
+  if (!S.data.generatedAt) return 'нет данных';
+  const d = new Date(S.data.generatedAt);
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} в ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function sheetUsed() {
+  if (S.data.counts && S.data.counts.datesFromSheet > 0) return true;
+  return S.data.games.some(game => game.dateSource === 'sheet');
 }
 
 /* ------------------------------------------------------------------ router */
@@ -1080,8 +1620,9 @@ function render() {
     back = true;
   } else if (route === 'player') {
     const key = decodeURIComponent(parts[1] || '');
+    const playerId = parts[2] ? decodeURIComponent(parts[2]) : null;
     const person = S.persons.get(key);
-    content = screenPlayer(key);
+    content = screenPlayer(key, playerId);
     if (person) title = person.name;
     back = true;
   } else if (route === 'game') {
@@ -1090,6 +1631,8 @@ function render() {
     if (game) title = `${game.home} — ${game.away}`;
     back = true;
   } else if (route === 'calendar') {
+    if (parts[1] === 'month') S.calMode = 'month';
+    if (parts[1] === 'list') S.calMode = 'list';
     content = screenCalendar();
   } else if (route === 'venues') {
     content = screenVenues();
@@ -1118,16 +1661,32 @@ function render() {
   document.querySelectorAll('#tabbar a').forEach(a => {
     a.classList.toggle('on', a.dataset.tab === route);
   });
+  saveUi();
 }
 
 $('#backBtn').addEventListener('click', () => { history.length > 1 ? history.back() : location.hash = '#/home'; });
 $('#searchBtn').addEventListener('click', () => { location.hash = '#/search/'; render(); });
+$('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'; render(); });
 
 window.addEventListener('hashchange', render);
+restoreUi();
 loadData();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } catch (error) {
+      // без service worker приложение всё равно работает
+    }
   });
 }

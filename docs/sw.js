@@ -1,4 +1,4 @@
-const CACHE = 'volleypiter-v4';
+const CACHE = 'volleypiter-v17';
 const SHELL = [
   './',
   'index.html',
@@ -10,17 +10,36 @@ const SHELL = [
   'icons/apple-touch-icon.png'
 ];
 
+function precache() {
+  return caches.open(CACHE)
+    .then(cache => cache.addAll(SHELL.map(url => new Request(url, { cache: 'reload' }))));
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())
-  );
+  event.waitUntil(precache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', event => {
+  const data = event.data || {};
+  if (data.type === 'CLEAR') {
+    // полная очистка кэша и сразу свежая копия оболочки
+    event.waitUntil(
+      caches.keys()
+        .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+        .then(() => precache())
+        .then(() => self.clients.matchAll())
+        .then(clients => clients.forEach(client => client.postMessage({ type: 'CLEARED' })))
+    );
+  }
+  if (data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', event => {
@@ -29,28 +48,24 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
 
-  if (url.pathname.endsWith('data.json')) {
-    // данные: сначала сеть, иначе последняя сохранённая копия
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
+  const isData = url.pathname.endsWith('data.json');
 
-  event.respondWith(
-    caches.match(request).then(cached => {
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    try {
+      const response = await fetch(request, { cache: isData ? 'no-store' : 'no-cache' });
+      if (response && response.ok) {
+        cache.put(isData ? new Request('data.json') : request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
-      return fetch(request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(request, copy));
-        return response;
-      });
-    }).catch(() => caches.match('index.html'))
-  );
+      if (request.mode === 'navigate') {
+        const shell = await cache.match('index.html');
+        if (shell) return shell;
+      }
+      throw error;
+    }
+  })());
 });
