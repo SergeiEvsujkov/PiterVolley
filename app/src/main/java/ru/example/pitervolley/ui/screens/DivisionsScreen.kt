@@ -142,7 +142,7 @@ private fun DivisionCard(division: Division, onClick: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${teams.size} команд",
+                    ru.example.pitervolley.data.countTeams(teams.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -150,7 +150,7 @@ private fun DivisionCard(division: Division, onClick: () -> Unit) {
                 Text("·", color = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "$played из ${games.size} игр",
+                    "$played из ${ru.example.pitervolley.data.countGames(games.size)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -292,7 +292,7 @@ private fun TeamsTab(teams: List<ru.example.pitervolley.data.Team>, onOpenTeam: 
                 Column(Modifier.weight(1f)) {
                     Text(team.name, style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "${Repo.playersOf(team.id).size} игроков",
+                        ru.example.pitervolley.data.countPlayers(Repo.playersOf(team.id).size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -267,7 +267,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
             Spacer(Modifier.height(16.dp))
             if (teams.isNotEmpty()) {
                 Text(
-                    text = if (teams.size > 1) "Заявлен за ${teams.size} команды" else "Команда",
+                    text = if (teams.size > 1) "Заявлен за ${ru.example.pitervolley.data.countTeams(teams.size)}" else "Команда",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -1,5 +1,6 @@
 package ru.example.pitervolley.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -156,7 +157,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Text("Игроки", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Сейчас в базе $persons уникальных игроков. Приложение считает их по ФИО и году рождения.",
+                        "Сейчас в базе ${ru.example.pitervolley.data.countPlayers(persons)}. " +
+                            "Приложение считает их по ФИО и году рождения.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -191,7 +193,8 @@ fun SettingsScreen(onBack: () -> Unit) {
 
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "Сейчас правок: разделений $splitCount, объединений $mergeCount",
+                        text = "Сейчас правок: ${ru.example.pitervolley.data.countSplits(splitCount)}, " +
+                            ru.example.pitervolley.data.countMerges(mergeCount),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -213,6 +216,53 @@ fun SettingsScreen(onBack: () -> Unit) {
                             "какие записи считаются одним человеком.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // ---------------------------------------------------------- о проекте
+            SectionTitle("О проекте")
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "PiterVolley — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Приложение не является официальным продуктом федерации. Данные собраны " +
+                            "из открытых источников: pitervolley.ru и таблицы расписания.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Для удаления контента напишите:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "evsujkov@yandex.ru",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_SENDTO,
+                                        android.net.Uri.parse("mailto:evsujkov@yandex.ru"),
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
             }

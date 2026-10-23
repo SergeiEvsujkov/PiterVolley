@@ -143,12 +143,24 @@ fun HomeScreen(
                             .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp),
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatChip(ds.divisions.size.toString(), "дивизионов", Modifier.weight(1f))
-                            StatChip(ds.teams.size.toString(), "команд", Modifier.weight(1f))
+                            StatChip(
+                                ds.divisions.size.toString(),
+                                ru.example.pitervolley.data.plural(ds.divisions.size, "дивизион", "дивизиона", "дивизионов"),
+                                Modifier.weight(1f),
+                            )
+                            StatChip(
+                                ds.teams.size.toString(),
+                                ru.example.pitervolley.data.plural(ds.teams.size, "команда", "команды", "команд"),
+                                Modifier.weight(1f),
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatChip(Repo.personCount().toString(), "игроков", Modifier.weight(1f))
+                            StatChip(
+                                Repo.personCount().toString(),
+                                ru.example.pitervolley.data.plural(Repo.personCount(), "игрок", "игрока", "игроков"),
+                                Modifier.weight(1f),
+                            )
                             StatChip(played.toString(), "сыграно", Modifier.weight(1f))
                         }
                     }
@@ -217,7 +229,7 @@ fun HomeScreen(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        text = if (person.teams.size > 1) "${person.teams.size} команды" else person.teamNames,
+                                        text = if (person.teams.size > 1) ru.example.pitervolley.data.countTeams(person.teams.size) else person.teamNames,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -278,7 +290,7 @@ fun HomeScreen(
                             Column(Modifier.weight(1f)) {
                                 Text("Адреса игр", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 Text(
-                                    "$venuesCount залов · расписание по каждому",
+                                    "${ru.example.pitervolley.data.countVenues(venuesCount)} · расписание по каждому",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -373,7 +385,7 @@ private fun CompetitionCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "$count дивизионов",
+                ru.example.pitervolley.data.countDivisions(count),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,

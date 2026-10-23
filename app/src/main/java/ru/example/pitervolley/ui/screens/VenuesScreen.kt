@@ -35,7 +35,11 @@ fun VenuesScreen(onBack: () -> Unit, onOpenVenue: (String) -> Unit) {
             .sortedByDescending { it.value }
     }
 
-    ScreenScaffold(title = "Залы", subtitle = "${venues.size} адресов сезона ${Repo.data.season}", onBack = onBack) { padding ->
+    ScreenScaffold(
+        title = "Залы",
+        subtitle = "${ru.example.pitervolley.data.countAddresses(venues.size)} сезона ${Repo.data.season}",
+        onBack = onBack,
+    ) { padding ->
         if (venues.isEmpty()) {
             Column(Modifier.padding(padding)) { EmptyState("Адресов нет") }
             return@ScreenScaffold
@@ -46,7 +50,7 @@ fun VenuesScreen(onBack: () -> Unit, onOpenVenue: (String) -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(entry.key, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(
-                            "${entry.value} игр",
+                            ru.example.pitervolley.data.countGames(entry.value),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -68,7 +72,11 @@ fun VenueScreen(venue: String, onBack: () -> Unit, onOpenGame: (Game) -> Unit) {
             .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
     }
 
-    ScreenScaffold(title = venue, subtitle = "${games.size} игр", onBack = onBack) { padding ->
+    ScreenScaffold(
+        title = venue,
+        subtitle = ru.example.pitervolley.data.countGames(games.size),
+        onBack = onBack,
+    ) { padding ->
         if (games.isEmpty()) {
             Column(Modifier.padding(padding)) { EmptyState("Игр нет") }
             return@ScreenScaffold
