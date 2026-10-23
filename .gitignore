@@ -1,4 +1,4 @@
-*.iml
+﻿*.iml
 .gradle
 /local.properties
 /.idea/caches
@@ -20,10 +20,10 @@ __pycache__/
 *.pyc
 
 *.png
+!docs/icons/*.png
+!app/src/main/res/mipmap-*/*.png
 
 build.log
-etl/raw/
-etl/out/
 .idea/
 device-data.json
 .gitignore.extra
