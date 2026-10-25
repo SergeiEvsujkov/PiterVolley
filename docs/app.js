@@ -1596,7 +1596,17 @@ function screenSettings() {
   donate.rel = 'noopener';
   about.append(donate);
   about.append(el('p', null, 'VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.'));
-  about.append(el('p', null, 'Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: pitervolley.ru и таблицы расписания.'));
+  const sources = el('p', null, 'Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: ');
+  const siteLink = el('a', 'contact', 'pitervolley.ru');
+  siteLink.href = 'https://pitervolley.ru';
+  siteLink.target = '_blank';
+  siteLink.rel = 'noopener';
+  const sheetLink = el('a', 'contact', 'таблицы расписания');
+  sheetLink.href = 'https://docs.google.com/spreadsheets/d/1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4/edit';
+  sheetLink.target = '_blank';
+  sheetLink.rel = 'noopener';
+  sources.append(siteLink, document.createTextNode(' и '), sheetLink, document.createTextNode('.'));
+  about.append(sources);
   about.append(el('p', null, 'Для удаления контента напишите:'));
   const mail = el('a', 'contact', 'evsujkov@yandex.ru');
   mail.href = 'mailto:evsujkov@yandex.ru';

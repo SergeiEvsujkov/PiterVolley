@@ -30,6 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.example.pitervolley.data.PersonOverrides
@@ -100,9 +106,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))
+                    val linkStyle = TextLinkStyles(
+                        style = SpanStyle(
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline,
+                        ),
+                    )
                     Text(
-                        "Приложение не является официальным продуктом федерации. Данные собраны " +
-                            "из открытых источников: pitervolley.ru и таблицы расписания.",
+                        buildAnnotatedString {
+                            append("Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: ")
+                            withLink(LinkAnnotation.Url("https://pitervolley.ru", linkStyle)) {
+                                append("pitervolley.ru")
+                            }
+                            append(" и ")
+                            withLink(
+                                LinkAnnotation.Url(
+                                    "https://docs.google.com/spreadsheets/d/1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4/edit",
+                                    linkStyle,
+                                ),
+                            ) {
+                                append("таблицы расписания")
+                            }
+                            append(".")
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
