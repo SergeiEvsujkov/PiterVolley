@@ -260,20 +260,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "Зачем это нужно",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Бывает, что одно и то же имя пишется по-разному или, наоборот, происходит " +
-                            "объединение двух разных спортсменов. На карточке игрока есть кнопки " +
-                            "«Это разные люди» и «Связать с игроком» — они исправляют такие случаи " +
-                            "вручную, и от этого зависят счётчик игроков, избранное и список игр.",
+                        "Правки на карточке игрока: «Это разные люди» и «Связать с игроком». " +
+                            "Сейчас правок: " +
+                            ru.example.pitervolley.data.countSplits(splitCount) + ", " +
+                            ru.example.pitervolley.data.countMerges(mergeCount) + ".",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = "Сейчас правок: ${ru.example.pitervolley.data.countSplits(splitCount)}, " +

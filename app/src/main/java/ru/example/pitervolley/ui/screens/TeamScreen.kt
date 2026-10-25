@@ -303,6 +303,12 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                 }
                 if (person != null) {
                     Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Бывает, что одно и то же имя пишется по-разному или, наоборот, происходит объединение двух разных спортсменов. Здесь это можно исправить.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (person.players.size > 1) {
                             OutlinedButton(
@@ -347,7 +353,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                                 onClick = { Repo.resetManualEdits(baseKey) },
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                             ) {
-                                Text("Вернуть как в данных федерации", style = MaterialTheme.typography.labelMedium)
+                                Text("Сбросить все правки", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }

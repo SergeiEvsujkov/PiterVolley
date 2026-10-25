@@ -1166,15 +1166,19 @@ function openMergeDialog(fromKey) {
   const sheet = el('div', 'sheet');
   const head = el('div', 'row pad');
   head.append(el('div', 'grow strong', 'Связать с игроком'));
+
   const close = el('button', 'icon-btn');
   close.append(icon('close'));
   head.append(close);
   sheet.append(head);
+  const hint = el('div', 'small muted', 'Выберите запись, которая относится к тому же человеку — даже если имя написано иначе.');
+  hint.style.padding = '0 16px 8px';
+  sheet.append(hint);
 
   const box = el('div', 'searchbox');
   const input = el('input');
   input.type = 'search';
-  input.placeholder = 'Имя игрока';
+  input.placeholder = 'Фамилия или имя';
   box.append(input);
   sheet.append(box);
 
