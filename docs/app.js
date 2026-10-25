@@ -705,7 +705,7 @@ function screenHome() {
   updatedText.append(el('div', 'small muted', `Данные на ${shortMoment(S.data.generatedAt) || '—'}`));
   updatedText.append(el('div', 'strong', shortAge(S.data.generatedAt) || 'ещё не загружены'));
   updatedText.append(el('div', 'small muted', shortChecked()));
-  updatedText.append(el('div', 'small muted', sourceLabel()));
+  updatedText.append(el('div', 'small muted', `Данные: ${sourceLabel()}`));
   updatedRow.append(updatedText);
   const refresh = el('button', 'btn btn-accent refresh', 'Обновить');
   refresh.addEventListener('click', () => refreshAll(refresh));
