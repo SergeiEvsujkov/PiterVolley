@@ -1128,7 +1128,7 @@ function screenPlayer(key, playerId) {
   {
     wrap.append(el('h2', 'section', 'Если это ошибка'));
     const tools = el('div', 'card');
-    tools.append(el('div', 'small muted', 'Федерация иногда пишет одно имя по-разному или, наоборот, склеивает разных детей. Здесь это можно исправить.'));
+    tools.append(el('div', 'small muted', 'Бывает, что одно и то же имя пишется по-разному или, наоборот, происходит объединение двух разных спортсменов. Здесь это можно исправить.'));
     const buttons = el('div', 'buttonrow');
 
     if (canSplit) {
