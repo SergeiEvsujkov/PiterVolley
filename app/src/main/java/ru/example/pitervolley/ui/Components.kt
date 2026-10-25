@@ -298,7 +298,7 @@ fun GameCard(
                     emphasized = game.hasResult,
                 )
             }
-            if (game.corrected) {
+            if (game.corrected && !Repo.isPastGame(game)) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(

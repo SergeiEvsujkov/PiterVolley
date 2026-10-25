@@ -496,7 +496,7 @@ function gameCard(game, options = {}) {
   card.append(line);
 
   if (game.venue) card.append(el('div', 'venue', game.venue));
-  if (game.corrected) {
+  if (game.corrected && !isPastGame(game)) {
     const warn = el('div', 'gamewarn');
     warn.append(icon('alert'), el('span', null, 'Внимание данная игра была скорректирована.'));
     card.append(warn);

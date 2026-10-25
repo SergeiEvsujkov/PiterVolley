@@ -176,7 +176,7 @@ fun GameScreen(
                 }
             }
 
-            if (game.corrected) {
+            if (game.corrected && !Repo.isPastGame(game)) {
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("!", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFA95A12))
