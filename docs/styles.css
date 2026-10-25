@@ -279,3 +279,5 @@ a{color:inherit;text-decoration:none}
 .results{max-height:52vh;overflow:auto}
 .results .row + .row{border-top:1px solid var(--line)}
 .notice .linkish{display:inline-block;margin-top:6px}
+
+.card.about .donate{display:inline-block;margin:6px 0 12px;text-decoration:none}

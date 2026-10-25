@@ -69,6 +69,33 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
+                        "Нравится приложение?",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "Помоги развитию — поддержи проект.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.material3.FilledTonalButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://spasibomir.ru/pay/35620"),
+                                    ),
+                                )
+                            }
+                        },
+                    ) {
+                        Text("Поддержать проект")
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text(
                         "VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
                         style = MaterialTheme.typography.bodySmall,
                     )

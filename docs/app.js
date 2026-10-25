@@ -1578,6 +1578,13 @@ function screenSettings() {
 
   wrap.append(el('h2', 'section', 'О проекте'));
   const about = el('div', 'card about');
+  about.append(el('div', 'strong', 'Нравится приложение?'));
+  about.append(el('p', null, 'Помоги развитию — поддержи проект.'));
+  const donate = el('a', 'btn btn-accent donate', 'Поддержать проект');
+  donate.href = 'https://spasibomir.ru/pay/35620';
+  donate.target = '_blank';
+  donate.rel = 'noopener';
+  about.append(donate);
   about.append(el('p', null, 'VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.'));
   about.append(el('p', null, 'Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: pitervolley.ru и таблицы расписания.'));
   about.append(el('p', null, 'Для удаления контента напишите:'));
