@@ -57,6 +57,53 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
         ) {
 
+            // ---------------------------------------------------------- о проекте
+            SectionTitle("О проекте")
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Приложение не является официальным продуктом федерации. Данные собраны " +
+                            "из открытых источников: pitervolley.ru и таблицы расписания.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Для удаления контента напишите:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "evsujkov@yandex.ru",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_SENDTO,
+                                        android.net.Uri.parse("mailto:evsujkov@yandex.ru"),
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                }
+            }
             // ---------------------------------------------------------- напоминания
             SectionTitle("Напоминания")
             Card(
@@ -225,53 +272,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                             "какие записи считаются одним человеком.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            // ---------------------------------------------------------- о проекте
-            SectionTitle("О проекте")
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        "VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Приложение не является официальным продуктом федерации. Данные собраны " +
-                            "из открытых источников: pitervolley.ru и таблицы расписания.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Для удаления контента напишите:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "evsujkov@yandex.ru",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            runCatching {
-                                context.startActivity(
-                                    android.content.Intent(
-                                        android.content.Intent.ACTION_SENDTO,
-                                        android.net.Uri.parse("mailto:evsujkov@yandex.ru"),
-                                    ),
-                                )
-                            }
-                        },
                     )
                 }
             }

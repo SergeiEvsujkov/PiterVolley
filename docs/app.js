@@ -1576,6 +1576,16 @@ function buildSearchResults(query) {
 function screenSettings() {
   const wrap = document.createDocumentFragment();
 
+  wrap.append(el('h2', 'section', 'О проекте'));
+  const about = el('div', 'card about');
+  about.append(el('p', null, 'VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.'));
+  about.append(el('p', null, 'Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: pitervolley.ru и таблицы расписания.'));
+  about.append(el('p', null, 'Для удаления контента напишите:'));
+  const mail = el('a', 'contact', 'evsujkov@yandex.ru');
+  mail.href = 'mailto:evsujkov@yandex.ru';
+  about.append(mail);
+  wrap.append(about);
+
   wrap.append(el('h2', 'section', 'Данные'));
   const dataGroup = el('div', 'group');
   const freshness = el('div', 'row pad');
@@ -1671,15 +1681,6 @@ function screenSettings() {
   }
   wrap.append(grouping);
 
-  wrap.append(el('h2', 'section', 'О проекте'));
-  const about = el('div', 'card about');
-  about.append(el('p', null, 'VolleyPiter — некоммерческий проект, сделанный в помощь болельщикам и тренерам.'));
-  about.append(el('p', null, 'Приложение не является официальным продуктом федерации. Данные собраны из открытых источников: pitervolley.ru и таблицы расписания.'));
-  about.append(el('p', null, 'Для удаления контента напишите:'));
-  const mail = el('a', 'contact', 'evsujkov@yandex.ru');
-  mail.href = 'mailto:evsujkov@yandex.ru';
-  about.append(mail);
-  wrap.append(about);
 
   return wrap;
 }
