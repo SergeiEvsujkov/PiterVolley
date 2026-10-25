@@ -90,6 +90,8 @@ data class Game(
     var refs: List<String> = emptyList(),
     /** Комментарий федерации к игре (например, кто играет первым). */
     var comment: String = "",
+    /** Строка расписания выделена красным — игру правили вручную. */
+    var corrected: Boolean = false,
 ) {
     val hasResult: Boolean get() = score.isNotBlank()
     val homeSets: Int get() = sets.count { it.size > 1 && it[0] > it[1] }
@@ -112,6 +114,7 @@ data class Slot(
     val venue: String = "",
     val games: Int = 1,
     val refs: List<String> = emptyList(),
+    val corrected: Boolean = false,
     val ages: List<Int> = emptyList(),
     val comment: String = "",
     val gameIds: List<String>? = null,

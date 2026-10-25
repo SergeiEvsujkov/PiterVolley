@@ -176,6 +176,19 @@ fun GameScreen(
                 }
             }
 
+            if (game.corrected) {
+                Spacer(Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("!", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFA95A12))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Внимание данная игра была скорректирована.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.ui.graphics.Color(0xFFA95A12),
+                    )
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
             Text(
                 text = when {

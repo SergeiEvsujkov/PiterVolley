@@ -286,6 +286,16 @@ def _iso_date(v):
     return "%s-%s-%s" % (m.group(3), m.group(2), m.group(1)) if m else None
 
 
+def _is_red(cell):
+    """Красный шрифт в ячейке — признак того, что строку правили вручную."""
+    font = cell.font
+    if font is None or font.color is None:
+        return False
+    if font.color.type != "rgb" or not font.color.rgb:
+        return False
+    return str(font.color.rgb).upper() in ("FFFF0000", "00FF0000", "FF0000")
+
+
 def parse_sheet(xls_bytes):
     """Одна строка листа — несколько игр: «Игр» + список возрастов, время +1:15."""
     import openpyxl
@@ -298,6 +308,7 @@ def parse_sheet(xls_bytes):
             continue
         num = row[0]
         struck = any(c.font is not None and c.font.strike for c in cells)
+        corrected = any(_is_red(c) for c in cells if c.value not in (None, ""))
         if struck or (isinstance(num, str) and num.strip().startswith("!")):
             continue  # отменено или перенесено
         raw = row[1]
@@ -330,6 +341,7 @@ def parse_sheet(xls_bytes):
                 "year": ages[i] if i < len(ages) else None,
                 "label": labels[i] if not ages else None,
                 "comment": comment,
+                "corrected": corrected,
             })
     return slots
 
@@ -409,6 +421,7 @@ def match_slots(slots, games, divisions):
                     g["time"] = ""
                     g["dateSource"] = "sheet"
                     date_filled += 1
+                g["corrected"] = bool(s.get("corrected"))
                 continue
             g["date"] = s["date"]
             if s["time"]:
@@ -417,6 +430,7 @@ def match_slots(slots, games, divisions):
                 g["venue"] = s["venue"]
             g["refs"] = [r for r in (s.get("refs") or []) if r]
             g["comment"] = s.get("comment") or ""
+            g["corrected"] = bool(s.get("corrected"))
             g["dateSource"] = "sheet"
             date_filled += 1
     return matched, date_filled

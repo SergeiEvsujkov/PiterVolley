@@ -230,6 +230,7 @@ object SheetSlots {
             game.dateSource = "sheet"
             game.refs = slot.refs.filter { it.isNotBlank() }
             game.comment = slot.comment
+            game.corrected = slot.corrected
             return hadDate
         }
         game.date = slot.date
@@ -239,6 +240,7 @@ object SheetSlots {
         game.dateSource = "sheet"
         game.refs = slot.refs.filter { it.isNotBlank() }
         game.comment = slot.comment
+        game.corrected = slot.corrected
         return true
     }
     /** Минимальный RFC4180 reader. */

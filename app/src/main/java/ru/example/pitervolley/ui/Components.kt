@@ -298,6 +298,31 @@ fun GameCard(
                     emphasized = game.hasResult,
                 )
             }
+            if (game.corrected) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(BrandOrange),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "!",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Внимание данная игра была скорректирована.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = BrandOrange,
+                    )
+                }
+            }
         }
     }
 }

@@ -360,6 +360,7 @@ const ICON_PATHS = {
   starOutline: '<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   close: '<path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   whistle: '<path d="M4 10h9l3-3h4v5l-4 2H9a5 5 0 1 1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  alert: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.1" fill="currentColor"/>',
 };
 
 function icon(name, cls) {
@@ -495,6 +496,11 @@ function gameCard(game, options = {}) {
   card.append(line);
 
   if (game.venue) card.append(el('div', 'venue', game.venue));
+  if (game.corrected) {
+    const warn = el('div', 'gamewarn');
+    warn.append(icon('alert'), el('span', null, 'Внимание данная игра была скорректирована.'));
+    card.append(warn);
+  }
   if (options.showRefs && ((game.refs || []).length || game.comment)) {
     const extra = el('div', 'venue');
     if ((game.refs || []).length) extra.textContent = 'Судьи: ' + game.refs.join(', ');
