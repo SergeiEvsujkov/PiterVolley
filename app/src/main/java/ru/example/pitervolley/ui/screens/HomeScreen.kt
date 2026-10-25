@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -116,6 +117,7 @@ fun HomeScreen(
     val upcoming = remember(revision) { Repo.upcoming(6) }
     val pastGames = remember(revision) { Repo.past(6) }
     var favShowPast by rememberSaveable { mutableStateOf(false) }
+    val homeListState = rememberLazyListState()
     val favoritePast = remember(revision, trackedTeamIds) {
         ds.games
             .filter { (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) && Repo.isPastGame(it) }
@@ -136,7 +138,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(state = homeListState, modifier = Modifier.fillMaxSize()) {
                 item {
                     Column(
                         Modifier
@@ -252,7 +254,12 @@ fun HomeScreen(
                                 .padding(start = 12.dp, end = 16.dp, top = 0.dp, bottom = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            TextButton(onClick = { if (favShowPast) favShowPast = false }) {
+                            TextButton(onClick = {
+                                val idx = homeListState.firstVisibleItemIndex
+                                val off = homeListState.firstVisibleItemScrollOffset
+                                if (favShowPast) favShowPast = false
+                                scope.launch { runCatching { homeListState.scrollToItem(idx, off) } }
+                            }) {
                                 Text(
                                     "Ближайшие",
                                     style = MaterialTheme.typography.titleMedium,
@@ -261,7 +268,12 @@ fun HomeScreen(
                                     else MaterialTheme.colorScheme.onBackground,
                                 )
                             }
-                            TextButton(onClick = { if (!favShowPast) favShowPast = true }) {
+                            TextButton(onClick = {
+                                val idx = homeListState.firstVisibleItemIndex
+                                val off = homeListState.firstVisibleItemScrollOffset
+                                if (!favShowPast) favShowPast = true
+                                scope.launch { runCatching { homeListState.scrollToItem(idx, off) } }
+                            }) {
                                 Text(
                                     "Прошедшие",
                                     style = MaterialTheme.typography.titleMedium,
@@ -293,7 +305,12 @@ fun HomeScreen(
                             .padding(start = 12.dp, end = 16.dp, top = 0.dp, bottom = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(onClick = { if (showPast) showPast = false }) {
+                        TextButton(onClick = {
+                            val idx = homeListState.firstVisibleItemIndex
+                            val off = homeListState.firstVisibleItemScrollOffset
+                            if (showPast) showPast = false
+                            scope.launch { runCatching { homeListState.scrollToItem(idx, off) } }
+                        }) {
                             Text(
                                 "Ближайшие",
                                 style = MaterialTheme.typography.titleMedium,
@@ -302,7 +319,12 @@ fun HomeScreen(
                                 else MaterialTheme.colorScheme.onBackground,
                             )
                         }
-                        TextButton(onClick = { if (!showPast) showPast = true }) {
+                        TextButton(onClick = {
+                            val idx = homeListState.firstVisibleItemIndex
+                            val off = homeListState.firstVisibleItemScrollOffset
+                            if (!showPast) showPast = true
+                            scope.launch { runCatching { homeListState.scrollToItem(idx, off) } }
+                        }) {
                             Text(
                                 "Прошедшие",
                                 style = MaterialTheme.typography.titleMedium,

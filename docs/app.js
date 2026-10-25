@@ -133,6 +133,30 @@ function trackedTeamIds() {
 
 const UI_DEFAULTS = { gender: 'all', year: 0, calDivision: 0, calMode: 'list', calMonth: null, calDay: null };
 
+// Переключение лент не должно уводить экран вверх: запоминаем положение вкладок.
+let scrollAnchor = null;
+
+function anchorTabs(node) {
+  const list = [...document.querySelectorAll('.seghead')];
+  const index = list.indexOf(node);
+  if (index >= 0) scrollAnchor = { top: node.getBoundingClientRect().top, index };
+}
+
+function restoreScroll() {
+  if (!scrollAnchor) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  const { top, index } = scrollAnchor;
+  scrollAnchor = null;
+  const node = [...document.querySelectorAll('.seghead')][index];
+  if (!node) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  window.scrollBy(0, node.getBoundingClientRect().top - top);
+}
+
 function restoreUi() {
   let saved = {};
   try {
@@ -762,7 +786,7 @@ function screenHome() {
     for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
       const button = el('button', (value === favPast ? 'on ' : '') + 'segbtn', label);
       button.addEventListener('click', () => {
-        if (value !== favPast) { S.favPast = value; render(); }
+        if (value !== favPast) { anchorTabs(favTabs); S.favPast = value; render(); }
       });
       favTabs.append(button);
     }
@@ -780,7 +804,7 @@ function screenHome() {
   for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
     const button = el('button', (value === showPast ? 'on ' : '') + 'segbtn', label);
     button.addEventListener('click', () => {
-      if (value !== showPast) { S.homePast = value; render(); }
+      if (value !== showPast) { anchorTabs(segment); S.homePast = value; render(); }
     });
     segment.append(button);
   }
@@ -1371,7 +1395,7 @@ function screenCalendar() {
   for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
     const button = el('button', (value === showPast ? 'on ' : '') + 'segbtn', label);
     button.addEventListener('click', () => {
-      if (value !== showPast) { S.calPast = value; render(); }
+      if (value !== showPast) { anchorTabs(tabs); S.calPast = value; render(); }
     });
     tabs.append(button);
   }
@@ -1887,7 +1911,7 @@ function render() {
 
   setHeader(title, subtitle, back);
   app.replaceChildren(content);
-  window.scrollTo(0, 0);
+  restoreScroll();
   document.querySelectorAll('#tabbar a').forEach(a => {
     a.classList.toggle('on', a.dataset.tab === route);
   });

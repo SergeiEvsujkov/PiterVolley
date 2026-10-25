@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +56,7 @@ import ru.example.pitervolley.ui.GameCard
 import ru.example.pitervolley.ui.GenderChips
 import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -215,6 +218,14 @@ private fun ListView(
     onShowPastChange: (Boolean) -> Unit,
     onOpenGame: (Game) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    fun switchFeed(value: Boolean) {
+        val idx = listState.firstVisibleItemIndex
+        val off = listState.firstVisibleItemScrollOffset
+        onShowPastChange(value)
+        scope.launch { runCatching { listState.scrollToItem(idx, off) } }
+    }
     val allGames = remember(byDate) { byDate.values.flatten() }
     val feed = remember(allGames, showPast) {
         if (showPast) {
@@ -230,7 +241,7 @@ private fun ListView(
         if (showPast) unique.sortedDescending() else unique.sorted()
     }
 
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item(key = "feed-tabs") {
             Row(
                 Modifier
@@ -238,8 +249,8 @@ private fun ListView(
                     .padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ListTab("Ближайшие", !showPast) { onShowPastChange(false) }
-                ListTab("Прошедшие", showPast) { onShowPastChange(true) }
+                ListTab("Ближайшие", !showPast) { switchFeed(false) }
+                ListTab("Прошедшие", showPast) { switchFeed(true) }
             }
         }
         if (feed.isEmpty()) {
