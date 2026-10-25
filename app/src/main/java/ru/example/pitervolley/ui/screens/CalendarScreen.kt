@@ -73,6 +73,7 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
     var divisionId by rememberSaveable { mutableStateOf(0) }
     var monthMode by rememberSaveable { mutableStateOf(false) }
     var monthIso by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
+    var calShowPast by rememberSaveable { mutableStateOf(false) }
     var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
 
     val divisionGender = remember { Repo.data.divisions.associate { it.id to it.gender } }
@@ -192,7 +193,13 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
                         onOpenGame = onOpenGame,
                     )
                 } else {
-                    ListView(byDate = byDate, undated = undated, onOpenGame = onOpenGame)
+                    ListView(
+                        byDate = byDate,
+                        undated = undated,
+                        showPast = calShowPast,
+                        onShowPastChange = { calShowPast = it },
+                        onOpenGame = onOpenGame,
+                    )
                 }
                 }
             }
@@ -201,42 +208,58 @@ fun CalendarScreen(onOpenGame: (Game) -> Unit) {
 }
 
 @Composable
-private fun ListView(byDate: Map<String, List<Game>>, undated: List<Game>, onOpenGame: (Game) -> Unit) {
-    val dates = remember(byDate) { byDate.keys.sorted() }
-    if (dates.isEmpty() && undated.isEmpty()) {
-        EmptyState("По выбранным фильтрам игр нет")
-        return
-    }
-    val todayIso = today().toString()
-    val initialIndex = remember(dates) {
-        var index = 0
-        for (d in dates) {
-            if (d >= todayIso) break
-            index += 1 + (byDate[d]?.size ?: 0)
+private fun ListView(
+    byDate: Map<String, List<Game>>,
+    undated: List<Game>,
+    showPast: Boolean,
+    onShowPastChange: (Boolean) -> Unit,
+    onOpenGame: (Game) -> Unit,
+) {
+    val allGames = remember(byDate) { byDate.values.flatten() }
+    val feed = remember(allGames, showPast) {
+        if (showPast) {
+            allGames.filter { Repo.isPastGame(it) }
+                .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
+        } else {
+            allGames.filter { !Repo.isPastGame(it) }
+                .sortedWith(compareBy({ it.localDate }, { it.time }))
         }
-        index
     }
-    val state = androidx.compose.foundation.lazy.rememberLazyListState()
-    androidx.compose.runtime.LaunchedEffect(dates) {
-        if (initialIndex > 0) state.scrollToItem(initialIndex)
+    val dates = remember(feed, showPast) {
+        val unique = feed.mapNotNull { it.localDate }.distinct()
+        if (showPast) unique.sortedDescending() else unique.sorted()
     }
 
-    LazyColumn(state = state, modifier = Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize()) {
+        item(key = "feed-tabs") {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ListTab("Ближайшие", !showPast) { onShowPastChange(false) }
+                ListTab("Прошедшие", showPast) { onShowPastChange(true) }
+            }
+        }
+        if (feed.isEmpty()) {
+            item { EmptyState(if (showPast) "Прошедших игр пока нет" else "Ближайших игр пока нет") }
+        }
         dates.forEach { date ->
             item(key = "h-$date") {
                 Text(
-                    text = formatDate(date, withYear = true).replaceFirstChar { it.uppercase() },
+                    text = formatDate(date.toString(), withYear = true).replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
                 )
             }
-            items(byDate[date].orEmpty(), key = { "${it.divisionId}-${it.id}" }) { game ->
+            items(feed.filter { it.localDate == date }, key = { "${it.divisionId}-${it.id}" }) { game ->
                 GameCard(game, onClick = { onOpenGame(game) }, showDivision = true, showDate = false)
             }
         }
-        if (undated.isNotEmpty()) {
+        if (!showPast && undated.isNotEmpty()) {
             item {
                 Text(
                     text = "Дата не назначена · ${undated.size}",
@@ -259,6 +282,18 @@ private fun ListView(byDate: Map<String, List<Game>>, undated: List<Game>, onOpe
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun ListTab(label: String, active: Boolean, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            color = if (active) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

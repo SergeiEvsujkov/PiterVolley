@@ -94,6 +94,7 @@ const S = {
   calMode: 'list',
   calMonth: null,
   calDay: null,
+  calPast: false,
   homePast: false,
   favPast: false,
   calDivision: 0,
@@ -1348,18 +1349,40 @@ function screenCalendar() {
 
   if (S.calMode === 'month') {
     wrap.append(renderMonth(byDate));
-  } else {
-    const dates = [...byDate.keys()].sort();
-    if (!dates.length && !undated.length) wrap.append(el('div', 'empty', 'По выбранным фильтрам игр нет'));
-    const future = dates.filter(d => d >= todayIso());
-    const startDate = future.length ? future[0] : dates[dates.length - 1];
-    for (const date of dates.filter(d => d >= startDate)) {
-      wrap.append(el('h2', 'section', fullDate(date)));
-      for (const game of byDate.get(date)) wrap.append(gameCard(game, { hideDate: true }));
+    if (undated.length) {
+      wrap.append(el('h2', 'section', `Дата не назначена · ${undated.length}`));
+      for (const game of undated) wrap.append(gameCard(game));
     }
+    return wrap;
   }
 
-  if (undated.length) {
+  const showPast = !!S.calPast;
+  const tabs = el('div', 'seghead');
+  for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
+    const button = el('button', (value === showPast ? 'on ' : '') + 'segbtn', label);
+    button.addEventListener('click', () => {
+      if (value !== showPast) { S.calPast = value; render(); }
+    });
+    tabs.append(button);
+  }
+  wrap.append(tabs);
+
+  const dated = games.filter(g => g.date);
+  const feed = (showPast
+    ? dated.filter(isPastGame).sort((a, b) => sortGames(b, a))
+    : dated.filter(g => !isPastGame(g)).sort(sortGames));
+  if (!feed.length) {
+    wrap.append(el('div', 'empty', showPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
+  }
+  const feedDates = [...new Set(feed.map(g => g.date))];
+  feedDates.sort();
+  if (showPast) feedDates.reverse();
+  for (const date of feedDates) {
+    wrap.append(el('h2', 'section', fullDate(date)));
+    for (const game of feed.filter(g => g.date === date)) wrap.append(gameCard(game, { hideDate: true }));
+  }
+
+  if (!showPast && undated.length) {
     wrap.append(el('h2', 'section', `Дата не назначена · ${undated.length}`));
     for (const game of undated) wrap.append(gameCard(game));
   }
