@@ -1,0 +1,39 @@
+name: Data guard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: data.json меняется только коммитами с префиксом data:
+        run: |
+          set -eu
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+          if [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            range="$after"
+          else
+            range="$before..$after"
+          fi
+          bad=0
+          for sha in $(git rev-list "$range" 2>/dev/null || echo "$after"); do
+            msg=$(git log -1 --format=%s "$sha")
+            if git diff-tree --no-commit-id --name-only -r "$sha" | grep -qx 'docs/data.json'; then
+              case "$msg" in
+                data:*) ;;
+                *)
+                  echo "::error::Коммит $sha трогает docs/data.json без префикса 'data:': $msg"
+                  bad=1
+                  ;;
+              esac
+            fi
+          done
+          exit $bad
