@@ -1,4 +1,4 @@
-const CACHE = 'volleypiter-v36';
+const CACHE = 'volleypiter-v37';
 const SHELL = [
   './',
   'index.html',

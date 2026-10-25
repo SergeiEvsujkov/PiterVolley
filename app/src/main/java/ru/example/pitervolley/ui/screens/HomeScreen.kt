@@ -175,6 +175,7 @@ fun HomeScreen(
                         refreshing = refreshing,
                         isError = syncMessage != null,
                         onRefresh = doRefresh,
+                        sourceText = SiteSync.lastSourceText(context),
                     )
                 }
 
