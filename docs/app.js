@@ -1213,12 +1213,12 @@ function screenPlayer(key, playerId) {
     wrap.append(card);
   }
 
-  // кнопка доступна, если у человека есть другие записи — даже когда группа
-  // после сброса ещё не пересобралась
-  const sameBaseRecords = player
-    ? S.data.players.filter(item => item.id !== player.id && baseKey(item) === baseKey(player))
+  // если страница открыта без id записи (из избранного), берём первую запись человека
+  const activePlayer = player || person.players[0] || null;
+  const sameBaseRecords = activePlayer
+    ? S.data.players.filter(item => item.id !== activePlayer.id && baseKey(item) === baseKey(activePlayer))
     : [];
-  const canSplit = player && !S.splits.has(player.id)
+  const canSplit = activePlayer && !S.splits.has(activePlayer.id)
     && (person.players.length > 1 || sameBaseRecords.length > 0);
   const edited = person.key.startsWith('id:') || person.players.some(item =>
     S.splits.has(item.id) || S.merges.has(baseKey(item)) || person.key !== baseKey(item));
@@ -1231,9 +1231,9 @@ function screenPlayer(key, playerId) {
     if (canSplit) {
       const split = el('button', 'btn btn-ghost', 'Это разные люди');
       split.addEventListener('click', () => {
-        const target = 'id:' + player.id;
-        splitPlayer(player);
-        location.hash = `#/player/${encodeURIComponent(target)}/${player.id}`;
+        const target = 'id:' + activePlayer.id;
+        splitPlayer(activePlayer);
+        location.hash = `#/player/${encodeURIComponent(target)}/${activePlayer.id}`;
       });
       buttons.append(split);
     }
@@ -1251,7 +1251,7 @@ function screenPlayer(key, playerId) {
     const reset = el('button', 'linkish', 'Сбросить все правки');
     reset.addEventListener('click', () => {
       // после сброса человек снова определяется по ФИО и году, а не по «id:…»
-      const anchor = player || person.players[0];
+      const anchor = activePlayer || person.players[0];
       const targetKey = anchor ? baseKey(anchor) : person.key;
       location.hash = `#/player/${encodeURIComponent(targetKey)}${anchor ? '/' + anchor.id : ''}`;
       resetOverrides();
