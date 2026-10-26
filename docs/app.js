@@ -1182,7 +1182,13 @@ function screenPlayer(key, playerId) {
     const notice = el('div', 'notice');
     notice.append(el('div', null, 'Есть ручные правки группировки игроков. От этого зависят счётчик игроков, избранное и список игр.'));
     const reset = el('button', 'linkish', 'Сбросить все правки');
-    reset.addEventListener('click', () => { resetOverrides(); location.hash = '#/player/' + encodeURIComponent(person.key); });
+    reset.addEventListener('click', () => {
+      // после сброса человек снова определяется по ФИО и году, а не по «id:…»
+      const anchor = player || person.players[0];
+      const targetKey = anchor ? baseKey(anchor) : person.key;
+      location.hash = `#/player/${encodeURIComponent(targetKey)}${anchor ? '/' + anchor.id : ''}`;
+      resetOverrides();
+    });
     notice.append(reset);
     wrap.append(notice);
   }
