@@ -1229,7 +1229,7 @@ function screenPlayer(key, playerId) {
     if (!playerFeed.length) {
       wrap.append(el('div', 'empty', playerShowPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
     }
-    for (const game of playerFeed.slice(0, 12)) wrap.append(gameCard(game));
+    for (const game of playerFeed) wrap.append(gameCard(game));
   }
 
   wrap.append(el('div', 'caption', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));

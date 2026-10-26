@@ -406,7 +406,7 @@ fun PlayerScreen(
                 if (playerFeed.isEmpty()) {
                     EmptyState(if (playerShowPast) "Прошедших игр пока нет" else "Ближайших игр пока нет")
                 } else {
-                    playerFeed.take(12).forEach { game ->
+                    playerFeed.forEach { game ->
                         GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
                     }
                 }
