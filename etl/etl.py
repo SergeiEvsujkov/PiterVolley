@@ -27,7 +27,7 @@ SITE = "https://pitervolley.ru"
 SHEET_ID = os.environ.get("VP_SHEET_ID", "1qVhAPMFcWAFylnoy2529uQzTXeBs6lOvfvpWbH2x6u4")
 SHEET_ATTEMPTS = 3
 UA = {"User-Agent": "VolleyPiter/0.1 (+data sync)"}
-DELAY = 0.35
+DELAY = 1.0
 
 os.makedirs(RAW, exist_ok=True)
 os.makedirs(OUT, exist_ok=True)
@@ -195,42 +195,48 @@ def find_chrome():
     return None
 
 
+RENDER_FAILED = []
+
+
 def render_html(url):
-    """Готовая страница после выполнения JS (headless Chrome)."""
+    """Готовая страница после выполнения JS (headless Chrome), с повтором."""
     chrome = find_chrome()
     if not chrome:
+        RENDER_FAILED.append(url)
         return None
     profile = os.path.join(RAW, "_chrome-profile")
-    try:
-        result = subprocess.run(
-            [
-                chrome,
-                "--headless=new",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--user-data-dir=" + profile,
-                "--virtual-time-budget=4000",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--disable-sync",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--metrics-recording-only",
-                "--dump-dom",
-                url,
-            ],
-            capture_output=True,
-            timeout=30,
-        )
-    except Exception as error:
-        log("render failed:", error)
-        return None
-    html = result.stdout.decode("utf-8", "replace")
-    if result.returncode != 0 or "<html" not in html.lower():
-        log("render failed, code", result.returncode)
-        return None
-    return html
+    for attempt in range(2):
+        try:
+            result = subprocess.run(
+                [
+                    chrome,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--user-data-dir=" + profile,
+                    "--virtual-time-budget=4000",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--metrics-recording-only",
+                    "--dump-dom",
+                    url,
+                ],
+                capture_output=True,
+                timeout=30,
+            )
+        except Exception as error:
+            log("render failed (attempt %d): %s" % (attempt + 1, error))
+            continue
+        html = result.stdout.decode("utf-8", "replace")
+        if result.returncode == 0 and "<html" in html.lower():
+            return html
+        log("render failed, code %s (attempt %d)" % (result.returncode, attempt + 1))
+    RENDER_FAILED.append(url)
+    return None
 
 
 def parse_site_standings(html):
@@ -644,6 +650,7 @@ def main():
         teams = prev.get("teams", [])
         players = prev.get("players", [])
         games = [dict(g) for g in prev.get("games", [])]
+        standings = prev.get("standings", {}) or {}
         log("using previous site data:", len(games), "games")
 
     names = {t["id"]: t["name"] for t in teams}
@@ -661,6 +668,8 @@ def main():
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")
 
+    if RENDER_FAILED:
+        log("не отрисовались: %s" % ", ".join(sorted(RENDER_FAILED)))
     if standings:
         log("таблицы с сайта: %d дивизионов" % len(standings))
     else:

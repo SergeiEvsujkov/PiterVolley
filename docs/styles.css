@@ -292,3 +292,29 @@ a{color:inherit;text-decoration:none}
   background:var(--bg);margin:0 -16px 10px;padding:10px 16px;
   box-shadow:0 6px 12px -10px rgba(16,24,40,.25);
 }
+
+/* ------------------------------------------------------------------ тёмная тема */
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1320;
+    --surface:#161f30;
+    --surface-2:#1e2a3f;
+    --text:#e7edf8;
+    --muted:#9aabc6;
+    --line:#26334c;
+    --brand:#79aaff;
+    --brand-dark:#a9c8ff;
+    --brand-soft:#1a2a45;
+    --orange:#f0a468;
+    --orange-soft:#3a2a1a;
+    --orange-dark:#ffc79a;
+    --green:#6fd3a2;
+    --pink:#f07ab0;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 8px 22px rgba(0,0,0,.35);
+  }
+  body{color-scheme:dark}
+  .topbar{background:rgba(13,19,32,.92)}
+  .offline{background:#3a2c16;color:#ffd28f;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+  .notice{background:#33280f;border-color:#5d4a1c;color:#ffd899}
+  .profile.pinned{box-shadow:0 6px 12px -10px rgba(0,0,0,.65)}
+}

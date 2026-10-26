@@ -43,10 +43,13 @@ def main():
     if data.get("offline") and not args.allow_offline:
         errors.append("данные собраны из кеша (--offline) — публиковать нельзя")
 
-    # 2. Нужны оба источника
+    # 2. Источники: без сайта можно публиковать, если есть таблица расписания
     sources = data.get("sources") or {}
     if not sources.get("site"):
-        errors.append("сайт pitervolley.ru не собрался (sources.site = false)")
+        if sources.get("sheet"):
+            notes.append("сайт недоступен — публикуем прошлые данные сайта и свежее расписание из таблицы")
+        else:
+            errors.append("нет ни сайта, ни таблицы расписания — публиковать нечего")
     if not sources.get("sheet"):
         notes.append("таблица расписания недоступна — публикуем данные сайта без расписания")
 
