@@ -16,9 +16,6 @@ import sys
 import time
 import difflib
 import datetime
-import subprocess
-import tempfile
-import shutil
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -168,239 +165,6 @@ def iso_date(s):
 # ---------------------------------------------------------------- site: divisions
 
 TEAM_LINK = r'<td class="cell-team[^"]*"><a href="team\?team=(\d+)"[^>]*>([^<]+)</a>'
-
-
-CHROME_CANDIDATES = [
-    os.environ.get("CHROME_BIN", ""),
-    "google-chrome",
-    "google-chrome-stable",
-    "chromium",
-    "chromium-browser",
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-]
-
-
-def find_chrome():
-    for candidate in CHROME_CANDIDATES:
-        if not candidate:
-            continue
-        if os.path.isabs(candidate):
-            if os.path.exists(candidate):
-                return candidate
-        else:
-            found = shutil.which(candidate)
-            if found:
-                return found
-    return None
-
-
-RENDER_FAILED = []
-
-
-def render_html(url, budget=6000):
-    """Готовая страница после выполнения JS (headless Chrome), с повтором."""
-    chrome = find_chrome()
-    if not chrome:
-        RENDER_FAILED.append(url)
-        return None
-    for attempt in range(2):
-        profile = tempfile.mkdtemp(prefix="vp-chrome-", dir=RAW)
-        try:
-            result = subprocess.run(
-                [
-                    chrome,
-                    "--headless=new",
-                    "--disable-gpu",
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--user-data-dir=" + profile,
-                    "--virtual-time-budget=%d" % budget,
-                    "--disable-extensions",
-                    "--disable-background-networking",
-                    "--disable-sync",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--metrics-recording-only",
-                    "--dump-dom",
-                    url,
-                ],
-                capture_output=True,
-                timeout=30,
-            )
-        except Exception as error:
-            log("render failed (attempt %d): %s" % (attempt + 1, error))
-            continue
-        html = result.stdout.decode("utf-8", "replace")
-        if result.returncode == 0 and "<html" in html.lower():
-            shutil.rmtree(profile, ignore_errors=True)
-            return html
-        log("render failed, code %s (attempt %d)" % (result.returncode, attempt + 1))
-        shutil.rmtree(profile, ignore_errors=True)
-    RENDER_FAILED.append(url)
-    return None
-
-
-def parse_combined_standings(html):
-    """Общая таблица Чемпионата: одна строка на клуб, внутри — 1-я и 2-я команды."""
-    from lxml import html as lxml_html
-
-    try:
-        doc = lxml_html.fromstring(html)
-    except Exception:
-        return []
-
-    tables = doc.xpath("//table[contains(concat(' ', normalize-space(@class), ' '), ' s-table ')]")
-    if not tables:
-        return []
-    table = tables[0]
-    body_rows = table.xpath("./tbody/tr") or table.xpath("./tr")[1:]
-    if not body_rows:
-        return []
-
-    def text_of(node):
-        return re.sub(r"\s+", " ", node.text_content()).strip()
-
-    rows = []
-    for row in body_rows:
-        cells = row.xpath("./td")
-        if not cells:
-            continue
-        name = text_of(cells[0])
-        if not name or name == "..." or name == "Команда":
-            continue
-
-        def by_class(name_part):
-            for cell in cells:
-                value = re.sub(r"\s+", "", cell.get("class") or "")
-                if name_part in value:
-                    return text_of(cell)
-            return ""
-
-        def number(value):
-            digits = re.sub(r"[^0-9]", "", value or "")
-            return int(digits) if digits else 0
-
-        split = ""
-        for cell in cells:
-            if "short-field" in (cell.get("class") or ""):
-                parts = []
-                for block in cell.xpath("./div"):
-                    score = re.sub(r"\s+", " ", block.text or "").strip()
-                    title_node = block.xpath("./div[contains(@class, 'short-title')]")
-                    title = text_of(title_node[0]) if title_node else ""
-                    parts.append(("%s %s" % (title, score)).strip())
-                split = " · ".join(p for p in parts if p)
-                break
-
-        rows.append({
-            "teamId": "",
-            "name": name,
-            "short": split,
-            "place": len(rows) + 1,
-            "played": number(by_class("total-games")),
-            "wins": number(by_class("total-wins")),
-            "losses": number(by_class("total-looses")),
-            "points": number(by_class("total-points")),
-            "sets": by_class("total-sets"),
-        })
-
-    return rows
-
-
-def parse_site_standings(html):
-    """Готовая таблица со страницы: место, команда, И, В, П, О, Партии.
-
-    Разбираем через lxml и берём только строки верхнего уровня: в шахматке
-    внутри ячеек бывают вложенные таблицы, из-за которых regex-разбор ломался.
-    """
-    from lxml import html as lxml_html
-
-    try:
-        doc = lxml_html.fromstring(html)
-    except Exception:
-        return []
-
-    tables = doc.xpath("//table[contains(concat(' ', normalize-space(@class), ' '), ' s-table ')]")
-    if not tables:
-        return []
-    table = tables[0]
-    head_rows = table.xpath("./thead/tr")
-    body_rows = table.xpath("./tbody/tr")
-    if not body_rows:
-        body_rows = table.xpath("./tr")
-        if head_rows:
-            head_rows = []
-        else:
-            head_rows = body_rows[:1]
-            body_rows = body_rows[1:]
-    if not body_rows or not head_rows:
-        return []
-
-    def text_of(node):
-        return re.sub(r"\s+", " ", node.text_content()).strip()
-
-    header = [text_of(cell).lower() for cell in head_rows[0].xpath("./td | ./th")]
-
-    def column(*names):
-        for index, title in enumerate(header):
-            if title in names:
-                return index
-        return None
-
-    col_played = column("и", "игры")
-    col_wins = column("в", "победы")
-    col_losses = column("п", "поражения")
-    col_points = column("оч", "очки", "о")
-    col_sets = column("пар", "партии")
-    if None in (col_played, col_wins, col_losses, col_points):
-        return []
-
-    standings = []
-    for row in body_rows:
-        cells = row.xpath("./td")
-        if len(cells) <= max(col_played, col_wins, col_losses, col_points):
-            continue
-        first = cells[0]
-        team_id = first.get("data-teamid") or ""
-        if not team_id or team_id == "0":
-            links = first.xpath(".//a/@href")
-            for href in links:
-                found = re.search(r"team\?team=(\d+)", href)
-                if found:
-                    team_id = found.group(1)
-                    break
-        name = (first.get("data-name") or "").strip()
-        if not name or name == "...":
-            name = text_of(first)
-            name = re.sub(r"^\s*\d+\s*", "", name)
-        if name == "...":
-            name = ""
-
-        def number(index):
-            if index is None or index >= len(cells):
-                return 0
-            digits = re.sub(r"[^0-9]", "", text_of(cells[index]))
-            return int(digits) if digits else 0
-
-        standings.append({
-            "teamId": team_id,
-            "name": name,
-            "place": len(standings) + 1,
-            "played": number(col_played),
-            "wins": number(col_wins),
-            "losses": number(col_losses),
-            "points": number(col_points),
-            "sets": text_of(cells[col_sets]) if col_sets is not None and col_sets < len(cells) else "",
-        })
-
-    # таблица может быть нулевой, если в дивизионе ещё не играли:
-    # это тоже данные сайта, поэтому отдаём её, если есть названия команд
-    standings = [item for item in standings if item["name"]]
-    if len(standings) >= 2:
-        return standings
-    return []
 
 
 def parse_division(tid, html):
@@ -706,22 +470,11 @@ def main():
     teams, team_ids = [], set()
     players = []
     sources = {"site": False, "sheet": False}
-    standings = {}
-    championship = {}
 
     try:
         for tid in range(1, 19):
-            url = "%s/table?tid=%d" % (SITE, tid)
-            html = fetch(url, "table-%d.html" % tid)
+            html = fetch("%s/table?tid=%d" % (SITE, tid), "table-%d.html" % tid)
             div, dgames = parse_division(tid, html)
-            site_rows = []
-            if os.environ.get("VP_SKIP_RENDER") != "1":
-                rendered = render_html(url)
-                if rendered:
-                    site_rows = parse_site_standings(rendered)
-            if site_rows:
-                standings[tid] = site_rows
-                log("tid=%-2d таблица с сайта: %d команд" % (tid, len(site_rows)))
             divisions.append(div)
             games.extend(dgames)
             for sid, sname in re.findall(TEAM_LINK, html):
@@ -751,7 +504,6 @@ def main():
         teams = prev.get("teams", [])
         players = prev.get("players", [])
         games = [dict(g) for g in prev.get("games", [])]
-        standings = prev.get("standings", {}) or {}
         log("using previous site data:", len(games), "games")
 
     names = {t["id"]: t["name"] for t in teams}
@@ -768,30 +520,6 @@ def main():
 
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")
-
-    for pair in ("15-16", "17-18"):
-        page = render_html("%s/tables?tid=%s" % (SITE, pair), budget=12000)
-        rows = parse_combined_standings(page) if page else []
-        if rows:
-            championship[pair] = rows
-            log("общая таблица Чемпионата %s: %d клубов" % (pair, len(rows)))
-
-    missing = [d for d in divisions if str(d.get("id")) not in standings]
-    if missing:
-        log("повторный рендер таблиц: %s" % ", ".join(str(d.get("id")) for d in missing))
-        for d in missing:
-            tid = d.get("id")
-            page = render_html("%s/table?tid=%s" % (SITE, tid), budget=10000)
-            rows = parse_site_standings(page) if page else []
-            if rows:
-                standings[tid] = rows
-                log("tid=%s таблица получена со второй попытки: %d команд" % (tid, len(rows)))
-    if RENDER_FAILED:
-        log("не отрисовались: %s" % ", ".join(sorted(RENDER_FAILED)))
-    if standings:
-        log("таблицы с сайта: %d дивизионов" % len(standings))
-    else:
-        log("таблицы с сайта получить не удалось — приложение посчитает их само")
 
     matched, date_filled = match_slots(slots, games, divisions)
     venue_total = canonicalize_venues(games, slots)
@@ -813,8 +541,6 @@ def main():
         },
         "divisions": divisions, "teams": teams, "players": players,
         "games": games, "slots": slots,
-        "standings": {str(k): v for k, v in standings.items()},
-        "championship": championship,
     }
 
     out = os.path.join(OUT, "data.json")

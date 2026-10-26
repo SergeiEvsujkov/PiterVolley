@@ -41,7 +41,7 @@ import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.TeamLogo
 
 private val PREMIER_TABS = listOf("Таблица", "Игры", "Команды")
-private val CHAMPIONSHIP_TABS = listOf("Таблица", "Игры", "Команды")
+private val CHAMPIONSHIP_TABS = listOf("Таблица", "Общая", "Игры", "Команды")
 
 @Composable
 fun DivisionScreen(
@@ -61,14 +61,9 @@ fun DivisionScreen(
     val isChampionship = Repo.isChampionship(division)
     val tabs = if (isChampionship) CHAMPIONSHIP_TABS else PREMIER_TABS
     val revision = Repo.revision.collectAsState().value
-    val standings = remember(divisionId, revision, isChampionship) {
-        if (isChampionship) {
-            Repo.championshipStandings(divisionId)
-                ?: Repo.siteStandings(divisionId)
-                ?: Repo.standings(divisionId)
-        } else {
-            Repo.siteStandings(divisionId) ?: Repo.standings(divisionId)
-        }
+    val standings = remember(divisionId, revision) { Repo.standings(divisionId) }
+    val combined = remember(divisionId, isChampionship) {
+        if (isChampionship) Repo.combinedStandings(divisionId) else emptyList()
     }
     val games = remember(divisionId) { Repo.gamesOf(divisionId) }
     val teams = remember(divisionId) { Repo.teamsOf(divisionId) }
@@ -95,6 +90,7 @@ fun DivisionScreen(
             }
             when (tabs.getOrNull(tab) ?: "Таблица") {
                 "Таблица" -> StandingsTab(standings, onOpenTeam, isChampionship)
+                "Общая" -> CombinedTab(combined, onOpenTeam)
                 "Игры" -> GamesTab(games, onOpenGame)
                 else -> TeamsTab(teams, onOpenTeam)
             }
