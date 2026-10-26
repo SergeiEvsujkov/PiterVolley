@@ -113,7 +113,11 @@ private fun LoadingState(error: String?) {
             if (error == null) {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(16.dp))
-                Text("Загружаем данные федерации…", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Загружаем данные федерации…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
             } else {
                 Text(
                     error,
