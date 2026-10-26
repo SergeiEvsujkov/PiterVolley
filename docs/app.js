@@ -316,24 +316,42 @@ async function refreshAll(button) {
   }
 }
 
+function readCachedData() {
+  const cached = localStorage.getItem('vp.data');
+  if (!cached) return false;
+  try {
+    S.data = normalizeDataset(JSON.parse(cached).data);
+    buildIndexes(S.data);
+    return true;
+  } catch (error) {
+    // кеш повреждён — убираем, чтобы не блокировать запуск
+    localStorage.removeItem('vp.data');
+    return false;
+  }
+}
+
 async function loadData(fresh) {
   const url = fresh ? `data.json?ts=${Date.now()}` : 'data.json';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     S.data = normalizeDataset(await response.json());
     buildIndexes(S.data);
     localStorage.setItem('vp.lastSync', new Date().toISOString());
-    localStorage.setItem('vp.data', JSON.stringify({ at: Date.now(), data: S.data }));
+    try {
+      localStorage.setItem('vp.data', JSON.stringify({ at: Date.now(), data: S.data }));
+    } catch (error) {
+      // нет места в хранилище — работаем без кеша
+    }
   } catch (error) {
-    const cached = localStorage.getItem('vp.data');
-    if (cached) {
-      S.data = normalizeDataset(JSON.parse(cached).data);
-      buildIndexes(S.data);
-    } else {
-      app.innerHTML = '<div class="empty">Не удалось загрузить данные. Проверьте интернет и обновите страницу.</div>';
+    if (!S.data && !readCachedData()) {
+      app.innerHTML = '<div class="empty">Нет сохранённых данных. Подключитесь к интернету и обновите страницу.</div>';
       return;
     }
+  } finally {
+    clearTimeout(timer);
   }
   document.addEventListener('online', () => { updateOnline(); loadData(true); });
   document.addEventListener('offline', updateOnline);
@@ -2074,6 +2092,7 @@ $('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'
 
 window.addEventListener('hashchange', render);
 restoreUi();
+if (readCachedData()) render();
 loadData(true);
 
 // возврат в приложение: если данные старше 10 минут — обновляем

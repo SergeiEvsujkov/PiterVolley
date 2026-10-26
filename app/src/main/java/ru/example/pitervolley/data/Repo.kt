@@ -39,6 +39,13 @@ object Repo {
         apply(text)
     }
 
+    /** Аварийная загрузка встроенных данных, если кеш не прочитался. */
+    fun loadFromAssets(context: Context) {
+        if (dataset != null) return
+        val text = context.assets.open(ASSET).use { it.readBytes().decodeToString() }
+        apply(text)
+    }
+
     /** Swap in a newly downloaded dataset (called from [Sync]). */
     fun apply(text: String) {
         apply(json.decodeFromString<Dataset>(text))

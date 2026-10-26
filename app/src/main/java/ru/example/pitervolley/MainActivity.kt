@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.example.pitervolley.data.Favorites
@@ -69,25 +70,28 @@ class MainActivity : ComponentActivity() {
 
                     if (!Repo.isLoaded) {
                         try {
-                            withContext(Dispatchers.IO) { Repo.load(app) }
-
-                            // Каждый запуск подтягиваем свежий data.json с GitHub,
-                            // но не чаще раза в 2 минуты и не дольше 20 секунд.
-                            val sinceLast = System.currentTimeMillis() - SiteSync.lastSync(app)
-                            if (SiteSync.lastSync(app) == 0L || sinceLast > LAUNCH_REFRESH_MS) {
-                                withTimeoutOrNull(20_000) {
-                                    SiteSync.refresh(app, force = true)
-                                }
+                            // данные показываем сразу; сеть не должна держать экран загрузки
+                            val loaded = withTimeoutOrNull(15_000) {
+                                withContext(Dispatchers.IO) { Repo.load(app) }
                             }
-
+                            if (loaded == null || !Repo.isLoaded) {
+                                withContext(Dispatchers.IO) { Repo.loadFromAssets(app) }
+                            }
                             ready = true
+                            error = null
                         } catch (t: Throwable) {
                             error = t.message ?: t.javaClass.simpleName
                         }
                     }
 
-                    // Данные с сайта обновляются только вручную, кнопкой «Обновить».
                     if (error == null) {
+                        // фоновое обновление: интерфейс уже показан
+                        launch {
+                            val sinceLast = System.currentTimeMillis() - SiteSync.lastSync(app)
+                            if (SiteSync.lastSync(app) == 0L || sinceLast > LAUNCH_REFRESH_MS) {
+                                runCatching { withTimeoutOrNull(60_000) { SiteSync.refresh(app, force = true) } }
+                            }
+                        }
                         ReminderWorker.sync(app)
                         runCatching { GameNotifications.notifyTomorrow(app) }
                     }
