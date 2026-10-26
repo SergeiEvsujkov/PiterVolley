@@ -15,6 +15,8 @@ data class Dataset(
     val players: List<Player> = emptyList(),
     val games: List<Game> = emptyList(),
     val slots: List<Slot> = emptyList(),
+    /** Готовые таблицы дивизионов, снятые с сайта. */
+    val standings: Map<String, List<SiteStanding>> = emptyMap(),
     /** Какие источники собрал ETL при публикации данных (новые файлы). */
     val sources: Sources? = null,
 )
@@ -123,6 +125,18 @@ data class Slot(
     val year: Int? = null,
     /** Номер команды Чемпионата (1-я или 2-я) для строк без возрастов. */
     val label: Int? = null,
+)
+
+@Serializable
+data class SiteStanding(
+    val teamId: String = "",
+    val name: String = "",
+    val place: Int = 0,
+    val played: Int = 0,
+    val wins: Int = 0,
+    val losses: Int = 0,
+    val points: Int = 0,
+    val sets: String = "",
 )
 
 // ------------------------------------------------------------------ date helpers

@@ -203,6 +203,29 @@ object Repo {
 
     // ---------------------------------------------------------------- standings
 
+    /** Таблица, снятая с сайта (готовая, не считаем сами). */
+    fun siteStandings(divisionId: Int): List<StandingRow>? {
+        val rows = data.standings[divisionId.toString()] ?: return null
+        if (rows.isEmpty()) return null
+        val result = rows.mapNotNull { row ->
+            val team = data.teams.firstOrNull { it.id == row.teamId }
+                ?: data.teams.firstOrNull { it.name == row.name }
+                ?: return@mapNotNull null
+            StandingRow(team).apply {
+                played = row.played
+                wins = row.wins
+                losses = row.losses
+                points = row.points
+                val parts = row.sets.split(":")
+                if (parts.size == 2) {
+                    setsFor = parts[0].trim().toIntOrNull() ?: 0
+                    setsAgainst = parts[1].trim().toIntOrNull() ?: 0
+                }
+            }
+        }
+        return result.ifEmpty { null }
+    }
+
     fun standings(divisionId: Int): List<StandingRow> = standingsCache.getOrPut(divisionId) {
         val division = divisionById[divisionId]
         val firstTeam = division?.teamLabel == 1

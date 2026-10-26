@@ -17,6 +17,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -59,7 +60,10 @@ fun DivisionScreen(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val isChampionship = Repo.isChampionship(division)
     val tabs = if (isChampionship) CHAMPIONSHIP_TABS else PREMIER_TABS
-    val standings = remember(divisionId) { Repo.standings(divisionId) }
+    val revision = Repo.revision.collectAsState().value
+    val standings = remember(divisionId, revision) {
+        Repo.siteStandings(divisionId) ?: Repo.standings(divisionId)
+    }
     val combined = remember(divisionId, isChampionship) {
         if (isChampionship) Repo.combinedStandings(divisionId) else emptyList()
     }

@@ -993,7 +993,38 @@ function screenDivision(divisionId, tab) {
   }
   wrap.append(chips);
 
-  if (current === 'table') {
+  const siteRows = S.data.standings && S.data.standings[divisionId];
+  const hasSiteTable = Array.isArray(siteRows) && siteRows.length > 0;
+
+  if (current === 'table' && hasSiteTable) {
+    const table = el('table', 'table');
+    const head = el('tr');
+    for (const h of ['#', 'Команда', 'И', 'В', 'П', 'Оч', 'Пар']) head.append(el('th', null, h));
+    table.append(head);
+    siteRows.forEach((row, index) => {
+      const team = S.teams.get(row.teamId) || S.data.teams.find(item => item.name === row.name);
+      const tr = el('tr');
+      tr.append(el('td', null, String(index + 1)));
+      const name = el('td', 'name');
+      if (team) {
+        name.append(teamNameCell(team, team.name));
+        name.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
+      } else {
+        name.append(el('span', 'ellipsis', row.name || ''));
+      }
+      tr.append(name);
+      tr.append(el('td', null, String(row.played)));
+      tr.append(el('td', null, String(row.wins)));
+      tr.append(el('td', null, String(row.losses)));
+      tr.append(el('td', 'strong', String(row.points)));
+      tr.append(el('td', null, row.sets || ''));
+      table.append(tr);
+    });
+    const card = el('div', 'card flush');
+    card.append(table);
+    wrap.append(card);
+    wrap.append(el('div', 'caption', 'Таблица с сайта федерации.'));
+  } else if (current === 'table') {
     const rows = standings(divisionId);
     const table = el('table', 'table');
     const head = el('tr');

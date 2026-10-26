@@ -16,6 +16,8 @@ import sys
 import time
 import difflib
 import datetime
+import subprocess
+import shutil
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -165,6 +167,126 @@ def iso_date(s):
 # ---------------------------------------------------------------- site: divisions
 
 TEAM_LINK = r'<td class="cell-team[^"]*"><a href="team\?team=(\d+)"[^>]*>([^<]+)</a>'
+
+
+CHROME_CANDIDATES = [
+    os.environ.get("CHROME_BIN", ""),
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+]
+
+
+def find_chrome():
+    for candidate in CHROME_CANDIDATES:
+        if not candidate:
+            continue
+        if os.path.isabs(candidate):
+            if os.path.exists(candidate):
+                return candidate
+        else:
+            found = shutil.which(candidate)
+            if found:
+                return found
+    return None
+
+
+def render_html(url):
+    """Готовая страница после выполнения JS (headless Chrome)."""
+    chrome = find_chrome()
+    if not chrome:
+        return None
+    profile = os.path.join(RAW, "_chrome-profile")
+    try:
+        result = subprocess.run(
+            [
+                chrome,
+                "--headless=new",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--user-data-dir=" + profile,
+                "--virtual-time-budget=9000",
+                "--dump-dom",
+                url,
+            ],
+            capture_output=True,
+            timeout=90,
+        )
+    except Exception as error:
+        log("render failed:", error)
+        return None
+    html = result.stdout.decode("utf-8", "replace")
+    if result.returncode != 0 or "<html" not in html.lower():
+        log("render failed, code", result.returncode)
+        return None
+    return html
+
+
+def parse_site_standings(html):
+    """Готовая таблица со страницы: место, команда, И, В, П, О, Партии."""
+    start = html.find('<table class="s-table')
+    if start < 0:
+        return []
+    end = html.find("</table>", start)
+    if end < 0:
+        return []
+    table = html[start:end]
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.S)
+    if not rows:
+        return []
+
+    header = [strip_tags(c).strip().lower() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", rows[0], re.S)]
+    def column(*names):
+        for index, title in enumerate(header):
+            if title in names:
+                return index
+        return None
+
+    col_played = column("и", "игры")
+    col_wins = column("в", "победы")
+    col_losses = column("п", "поражения")
+    col_points = column("оч", "очки", "о")
+    col_sets = column("пар", "партии")
+    if None in (col_played, col_wins, col_losses, col_points):
+        return []
+
+    standings = []
+    for row in rows[1:]:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+        if len(cells) <= max(col_played, col_wins, col_losses, col_points):
+            continue
+        first = cells[0]
+        team_id = re.search(r'data-teamid="(\d+)"', first)
+        name_attr = re.search(r'data-name="([^"]*)"', first)
+        name = (name_attr.group(1) if name_attr else "").strip()
+        if not name or name == "...":
+            name = strip_tags(first).strip()
+            name = re.sub(r"^\s*\d+\s*", "", name)
+        if name == "...":
+            name = ""
+        def number(index):
+            if index is None or index >= len(cells):
+                return 0
+            digits = re.sub(r"[^0-9]", "", strip_tags(cells[index]))
+            return int(digits) if digits else 0
+        standings.append({
+            "teamId": team_id.group(1) if team_id else "",
+            "name": name,
+            "place": len(standings) + 1,
+            "played": number(col_played),
+            "wins": number(col_wins),
+            "losses": number(col_losses),
+            "points": number(col_points),
+            "sets": strip_tags(cells[col_sets]).strip() if col_sets is not None and col_sets < len(cells) else "",
+        })
+    if any(item["played"] or item["points"] for item in standings):
+        return standings
+    return []
 
 
 def parse_division(tid, html):
@@ -470,11 +592,20 @@ def main():
     teams, team_ids = [], set()
     players = []
     sources = {"site": False, "sheet": False}
+    standings = {}
 
     try:
         for tid in range(1, 19):
-            html = fetch("%s/table?tid=%d" % (SITE, tid), "table-%d.html" % tid)
+            url = "%s/table?tid=%d" % (SITE, tid)
+            html = fetch(url, "table-%d.html" % tid)
+            rendered = render_html(url)
+            if rendered:
+                html = rendered
             div, dgames = parse_division(tid, html)
+            site_rows = parse_site_standings(html)
+            if site_rows:
+                standings[tid] = site_rows
+                log("tid=%-2d таблица с сайта: %d команд" % (tid, len(site_rows)))
             divisions.append(div)
             games.extend(dgames)
             for sid, sname in re.findall(TEAM_LINK, html):
@@ -541,6 +672,7 @@ def main():
         },
         "divisions": divisions, "teams": teams, "players": players,
         "games": games, "slots": slots,
+        "standings": {str(k): v for k, v in standings.items()},
     }
 
     out = os.path.join(OUT, "data.json")
