@@ -115,7 +115,11 @@ private fun LoadingState(error: String?) {
                 Spacer(Modifier.height(16.dp))
                 Text("Загружаем данные федерации…", style = MaterialTheme.typography.bodyMedium)
             } else {
-                Text(error, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
             }
         }
     }
