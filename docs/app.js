@@ -1136,8 +1136,6 @@ function screenDivision(divisionId, tab) {
       tr.append(el('td', null, String(row.losses)));
       tr.append(el('td', 'strong', String(row.points)));
       tr.append(el('td', null, `${row.sf}:${row.sa}`));
-      tr.style.cursor = 'pointer';
-      tr.addEventListener('click', () => openTeamChoice(row));
       table.append(tr);
     });
     const card = el('div', 'card flush');
@@ -1163,6 +1161,8 @@ function screenDivision(divisionId, tab) {
       tr.append(el('td', null, String(row.losses)));
       tr.append(el('td', 'strong', String(row.points)));
       tr.append(el('td', null, `${row.sf}:${row.sa}`));
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', () => openTeamChoice(row));
       table.append(tr);
     });
     const card = el('div', 'card flush');
