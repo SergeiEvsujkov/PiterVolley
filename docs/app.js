@@ -1002,7 +1002,9 @@ function screenDivision(divisionId, tab) {
     for (const h of ['#', 'Команда', 'И', 'В', 'П', 'Оч', 'Пар']) head.append(el('th', null, h));
     table.append(head);
     siteRows.forEach((row, index) => {
-      const team = S.teams.get(row.teamId) || S.data.teams.find(item => item.name === row.name);
+      const team = S.data.teams.find(item =>
+        String(item.divisionId) === String(divisionId) &&
+        ((row.teamId && String(item.id) === String(row.teamId)) || item.name === row.name));
       const tr = el('tr');
       tr.append(el('td', null, String(index + 1)));
       const name = el('td', 'name');

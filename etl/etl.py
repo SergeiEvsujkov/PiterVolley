@@ -268,6 +268,8 @@ def parse_site_standings(html):
             continue
         first = cells[0]
         team_id = re.search(r'data-teamid="(\d+)"', first)
+        if not team_id or team_id.group(1) == "0":
+            team_id = re.search(r'team\?team=(\d+)', first)
         name_attr = re.search(r'data-name="([^"]*)"', first)
         name = (name_attr.group(1) if name_attr else "").strip()
         if not name or name == "...":

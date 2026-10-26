@@ -207,9 +207,10 @@ object Repo {
     fun siteStandings(divisionId: Int): List<StandingRow>? {
         val rows = data.standings[divisionId.toString()] ?: return null
         if (rows.isEmpty()) return null
+        val divisionTeams = data.teams.filter { it.divisionId == divisionId }
         val result = rows.mapNotNull { row ->
-            val team = data.teams.firstOrNull { it.id == row.teamId }
-                ?: data.teams.firstOrNull { it.name == row.name }
+            val team = divisionTeams.firstOrNull { row.teamId.isNotBlank() && it.id == row.teamId }
+                ?: divisionTeams.firstOrNull { it.name == row.name }
                 ?: return@mapNotNull null
             StandingRow(team).apply {
                 played = row.played
