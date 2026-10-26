@@ -319,7 +319,10 @@ fun PlayerScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (person.players.size > 1) {
+                        val sameBase = Repo.data.players.any {
+                            it.id != player.id && Repo.baseKeyOf(it) == baseKey
+                        }
+                        if (person.players.size > 1 || sameBase) {
                             OutlinedButton(
                                 onClick = {
                                     person.players

@@ -85,9 +85,9 @@ const S = {
   teams: new Map(),
   persons: new Map(),       // personKey -> {key, name, birthYear, players:[], teams:[]}
   playerPerson: new Map(),  // playerId -> personKey
-  favTeams: new Set(JSON.parse(localStorage.getItem('vp.favTeams') || '[]')),
+  favTeams: new Set((JSON.parse(localStorage.getItem('vp.favTeams') || '[]')).map(String)),
   favPersons: new Set(JSON.parse(localStorage.getItem('vp.favPersons') || '[]')),
-  splits: new Set(JSON.parse(localStorage.getItem('vp.splits') || '[]')),
+  splits: new Set((JSON.parse(localStorage.getItem('vp.splits') || '[]')).map(String)),
   merges: new Map(Object.entries(JSON.parse(localStorage.getItem('vp.merges') || '{}'))),
   gender: 'all',
   year: 0,
@@ -1199,7 +1199,13 @@ function screenPlayer(key, playerId) {
     wrap.append(card);
   }
 
-  const canSplit = player && person.players.length > 1 && !S.splits.has(player.id);
+  // кнопка доступна, если у человека есть другие записи — даже когда группа
+  // после сброса ещё не пересобралась
+  const sameBaseRecords = player
+    ? S.data.players.filter(item => item.id !== player.id && baseKey(item) === baseKey(player))
+    : [];
+  const canSplit = player && !S.splits.has(player.id)
+    && (person.players.length > 1 || sameBaseRecords.length > 0);
   const edited = person.key.startsWith('id:') || person.players.some(item =>
     S.splits.has(item.id) || S.merges.has(baseKey(item)) || person.key !== baseKey(item));
   {
