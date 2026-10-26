@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -191,6 +194,7 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, 
 
 @Composable
 private fun CombinedTab(rows: List<ClubRow>, onOpenTeam: (String) -> Unit) {
+    var choosing by remember { mutableStateOf<ClubRow?>(null) }
     if (rows.isEmpty()) {
         EmptyState("Общая таблица пуста")
         return
@@ -223,7 +227,10 @@ private fun CombinedTab(rows: List<ClubRow>, onOpenTeam: (String) -> Unit) {
             DividerLine()
         }
         itemsIndexed(rows, key = { _, row -> row.name }) { index, row ->
-            ClickableRow({ row.teams.firstOrNull()?.let { onOpenTeam(it.id) } }) {
+            ClickableRow({
+                if (row.teams.size > 1) choosing = row
+                else row.teams.firstOrNull()?.let { onOpenTeam(it.id) }
+            }) {
                 Text(
                     text = (index + 1).toString(),
                     Modifier.width(22.dp),
@@ -263,6 +270,29 @@ private fun CombinedTab(rows: List<ClubRow>, onOpenTeam: (String) -> Unit) {
                 modifier = Modifier.padding(16.dp),
             )
         }
+    }
+
+    choosing?.let { club ->
+        AlertDialog(
+            onDismissRequest = { choosing = null },
+            title = { Text(club.name) },
+            text = {
+                Column {
+                    club.teams.forEach { team ->
+                        val label = Repo.division(team.divisionId)?.teamLabel
+                        TextButton(
+                            onClick = {
+                                choosing = null
+                                onOpenTeam(team.id)
+                            },
+                        ) {
+                            Text(if (label != null) "$label-я команда" else team.name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+        )
     }
 }
 

@@ -997,6 +997,48 @@ function screenDivisions() {
   return wrap;
 }
 
+function openTeamChoice(club) {
+  const teams = club && club.teams ? club.teams : [];
+  if (!teams.length) return;
+  if (teams.length === 1) { location.hash = `#/team/${teams[0].id}`; return; }
+
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', club.name));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const hint = el('div', 'small muted', 'В клубе две команды — уточните, какую открыть.');
+  hint.style.padding = '0 16px 8px';
+  sheet.append(hint);
+
+  const list = el('div', 'results');
+  for (const team of teams) {
+    const division = S.divisions.get(team.divisionId);
+    const label = division && division.teamLabel ? `${division.teamLabel}-я команда` : team.name;
+    const row = el('div', 'row pad');
+    row.append(teamLogo(team));
+    const text = el('div', 'grow');
+    text.append(el('div', null, label));
+    text.append(el('div', 'small muted', team.name));
+    row.append(text, chevron());
+    row.addEventListener('click', () => {
+      overlay.remove();
+      location.hash = `#/team/${team.id}`;
+    });
+    list.append(row);
+  }
+  sheet.append(list);
+
+  close.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
+}
+
 function screenDivision(divisionId, tab) {
   const division = S.divisions.get(divisionId);
   if (!division) return el('div', 'empty', 'Дивизион не найден');
@@ -1094,6 +1136,8 @@ function screenDivision(divisionId, tab) {
       tr.append(el('td', null, String(row.losses)));
       tr.append(el('td', 'strong', String(row.points)));
       tr.append(el('td', null, `${row.sf}:${row.sa}`));
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', () => openTeamChoice(row));
       table.append(tr);
     });
     const card = el('div', 'card flush');
