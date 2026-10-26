@@ -17,6 +17,7 @@ import time
 import difflib
 import datetime
 import subprocess
+import tempfile
 import shutil
 import urllib.request
 
@@ -198,14 +199,14 @@ def find_chrome():
 RENDER_FAILED = []
 
 
-def render_html(url):
+def render_html(url, budget=6000):
     """Готовая страница после выполнения JS (headless Chrome), с повтором."""
     chrome = find_chrome()
     if not chrome:
         RENDER_FAILED.append(url)
         return None
-    profile = os.path.join(RAW, "_chrome-profile")
     for attempt in range(2):
+        profile = tempfile.mkdtemp(prefix="vp-chrome-", dir=RAW)
         try:
             result = subprocess.run(
                 [
@@ -215,7 +216,7 @@ def render_html(url):
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                     "--user-data-dir=" + profile,
-                    "--virtual-time-budget=4000",
+                    "--virtual-time-budget=%d" % budget,
                     "--disable-extensions",
                     "--disable-background-networking",
                     "--disable-sync",
@@ -233,26 +234,48 @@ def render_html(url):
             continue
         html = result.stdout.decode("utf-8", "replace")
         if result.returncode == 0 and "<html" in html.lower():
+            shutil.rmtree(profile, ignore_errors=True)
             return html
         log("render failed, code %s (attempt %d)" % (result.returncode, attempt + 1))
+        shutil.rmtree(profile, ignore_errors=True)
     RENDER_FAILED.append(url)
     return None
 
 
 def parse_site_standings(html):
-    """Готовая таблица со страницы: место, команда, И, В, П, О, Партии."""
-    start = html.find('<table class="s-table')
-    if start < 0:
-        return []
-    end = html.find("</table>", start)
-    if end < 0:
-        return []
-    table = html[start:end]
-    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table, re.S)
-    if not rows:
+    """Готовая таблица со страницы: место, команда, И, В, П, О, Партии.
+
+    Разбираем через lxml и берём только строки верхнего уровня: в шахматке
+    внутри ячеек бывают вложенные таблицы, из-за которых regex-разбор ломался.
+    """
+    from lxml import html as lxml_html
+
+    try:
+        doc = lxml_html.fromstring(html)
+    except Exception:
         return []
 
-    header = [strip_tags(c).strip().lower() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", rows[0], re.S)]
+    tables = doc.xpath("//table[contains(concat(' ', normalize-space(@class), ' '), ' s-table ')]")
+    if not tables:
+        return []
+    table = tables[0]
+    head_rows = table.xpath("./thead/tr")
+    body_rows = table.xpath("./tbody/tr")
+    if not body_rows:
+        body_rows = table.xpath("./tr")
+        if head_rows:
+            head_rows = []
+        else:
+            head_rows = body_rows[:1]
+            body_rows = body_rows[1:]
+    if not body_rows or not head_rows:
+        return []
+
+    def text_of(node):
+        return re.sub(r"\s+", " ", node.text_content()).strip()
+
+    header = [text_of(cell).lower() for cell in head_rows[0].xpath("./td | ./th")]
+
     def column(*names):
         for index, title in enumerate(header):
             if title in names:
@@ -268,37 +291,47 @@ def parse_site_standings(html):
         return []
 
     standings = []
-    for row in rows[1:]:
-        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+    for row in body_rows:
+        cells = row.xpath("./td")
         if len(cells) <= max(col_played, col_wins, col_losses, col_points):
             continue
         first = cells[0]
-        team_id = re.search(r'data-teamid="(\d+)"', first)
-        if not team_id or team_id.group(1) == "0":
-            team_id = re.search(r'team\?team=(\d+)', first)
-        name_attr = re.search(r'data-name="([^"]*)"', first)
-        name = (name_attr.group(1) if name_attr else "").strip()
+        team_id = first.get("data-teamid") or ""
+        if not team_id or team_id == "0":
+            links = first.xpath(".//a/@href")
+            for href in links:
+                found = re.search(r"team\?team=(\d+)", href)
+                if found:
+                    team_id = found.group(1)
+                    break
+        name = (first.get("data-name") or "").strip()
         if not name or name == "...":
-            name = strip_tags(first).strip()
+            name = text_of(first)
             name = re.sub(r"^\s*\d+\s*", "", name)
         if name == "...":
             name = ""
+
         def number(index):
             if index is None or index >= len(cells):
                 return 0
-            digits = re.sub(r"[^0-9]", "", strip_tags(cells[index]))
+            digits = re.sub(r"[^0-9]", "", text_of(cells[index]))
             return int(digits) if digits else 0
+
         standings.append({
-            "teamId": team_id.group(1) if team_id else "",
+            "teamId": team_id,
             "name": name,
             "place": len(standings) + 1,
             "played": number(col_played),
             "wins": number(col_wins),
             "losses": number(col_losses),
             "points": number(col_points),
-            "sets": strip_tags(cells[col_sets]).strip() if col_sets is not None and col_sets < len(cells) else "",
+            "sets": text_of(cells[col_sets]) if col_sets is not None and col_sets < len(cells) else "",
         })
-    if any(item["played"] or item["points"] for item in standings):
+
+    # таблица может быть нулевой, если в дивизионе ещё не играли:
+    # это тоже данные сайта, поэтому отдаём её, если есть названия команд
+    standings = [item for item in standings if item["name"]]
+    if len(standings) >= 2:
         return standings
     return []
 
@@ -668,6 +701,16 @@ def main():
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")
 
+    missing = [d for d in divisions if str(d.get("id")) not in standings]
+    if missing:
+        log("повторный рендер таблиц: %s" % ", ".join(str(d.get("id")) for d in missing))
+        for d in missing:
+            tid = d.get("id")
+            page = render_html("%s/table?tid=%s" % (SITE, tid), budget=10000)
+            rows = parse_site_standings(page) if page else []
+            if rows:
+                standings[tid] = rows
+                log("tid=%s таблица получена со второй попытки: %d команд" % (tid, len(rows)))
     if RENDER_FAILED:
         log("не отрисовались: %s" % ", ".join(sorted(RENDER_FAILED)))
     if standings:
