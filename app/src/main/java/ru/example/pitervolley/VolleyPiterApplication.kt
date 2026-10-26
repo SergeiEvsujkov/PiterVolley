@@ -12,6 +12,11 @@ import coil.memory.MemoryCache
  */
 class VolleyPiterApplication : Application(), ImageLoaderFactory {
 
+    override fun onCreate() {
+        super.onCreate()
+        ru.example.pitervolley.data.UiState.init(this)
+    }
+
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .crossfade(true)
         .memoryCache {

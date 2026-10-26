@@ -47,13 +47,15 @@ import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onOpenHelp: () -> Unit = {}) {
     var version by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val reminders by ReminderSettings.state.collectAsState()
     val splitCount = remember(version) { PersonOverrides.splitCount() }
     val mergeCount = remember(version) { PersonOverrides.mergeCount() }
     val persons = remember(version) { Repo.personCount() }
+    val favTeams by ru.example.pitervolley.data.Favorites.teams.collectAsState()
+    val favPersons by ru.example.pitervolley.data.Favorites.persons.collectAsState()
 
     ScreenScaffold(title = "Настройки", onBack = onBack) { padding ->
         Column(
@@ -158,6 +160,35 @@ fun SettingsScreen(onBack: () -> Unit) {
                     )
                 }
             }
+            // ---------------------------------------------------------- помощь
+            SectionTitle("Справка")
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clickable { onOpenHelp() },
+            ) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Как пользоваться",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Избранное, календарь, правки игроков, напоминания — коротко",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
             // ---------------------------------------------------------- напоминания
             SectionTitle("Напоминания")
             Card(
@@ -264,11 +295,43 @@ fun SettingsScreen(onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Игроки", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("Данные на", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Сейчас в базе ${ru.example.pitervolley.data.countPlayers(persons)}. " +
-                            "Приложение считает их по ФИО и году рождения.",
+                        ru.example.pitervolley.data.TimeText.dataStamp(Repo.data.generatedAt) ?: "нет данных",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Проверка", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        SiteSync.lastSyncText(context),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("В базе", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        buildString {
+                            append(ru.example.pitervolley.data.countPlayers(persons))
+                            append(" · ")
+                            append("${Repo.data.games.size} игр")
+                            append(" · ")
+                            append("${Repo.data.teams.size} команд")
+                            append(" · ")
+                            append("${Repo.data.divisions.size} дивизионов")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Избранное", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${favTeams.size} ${if (favTeams.size == 1) "команда" else "команд"} · " +
+                            "${favPersons.size} ${if (favPersons.size == 1) "игрок" else "игроков"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

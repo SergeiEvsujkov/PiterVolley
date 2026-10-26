@@ -1706,6 +1706,39 @@ function buildSearchResults(query) {
   return wrap;
 }
 
+
+function screenHelp() {
+  const wrap = document.createDocumentFragment();
+  const sections = [
+    ['С чего начать',
+      'На главной — ближайшие игры и игры избранных команд. Переключатель «Ближайшие / Прошедшие» ' +
+      'меняет список. Нажмите на карточку игры, чтобы увидеть счёт, зал и судей.'],
+    ['Избранное',
+      'Звёздочка на карточке команды или игрока добавляет её в избранное. Избранные команды и игроки ' +
+      'появляются на главной, их игры попадают в отдельный список и в напоминания.'],
+    ['Календарь и дивизионы',
+      'Календарь показывает все игры по дням или месяцем. Фильтр сверху оставляет только нужный дивизион. ' +
+      'В разделе «Дивизионы» — таблица, игры и составы команд.'],
+    ['Если данные неверные',
+      'На карточке игрока есть «Это разные люди» и «Связать с игроком» — если федерация записала одного ' +
+      'человека дважды или объединила разных. Правки хранятся только на этом устройстве и на другие ' +
+      'не передаются. Сбросить их можно в настройках, раздел «Ручная группировка».'],
+    ['Данные и обновление',
+      'Расписание обновляется автоматически с сайта федерации и из таблицы назначений. Если интернета нет, ' +
+      'показывается последняя сохранённая версия. Дата данных и источник видны в настройках.'],
+    ['Установка на телефон',
+      'Android: откройте сайт в Chrome и выберите «Установить приложение» или «Добавить на главный экран». ' +
+      'iPhone: откройте сайт в Safari, нажмите «Поделиться» → «На экран Домой».'],
+  ];
+  for (const [title, text] of sections) {
+    wrap.append(el('h2', 'section', title));
+    const card = el('div', 'card');
+    card.append(el('div', null, text));
+    wrap.append(card);
+  }
+  return wrap;
+}
+
 function screenSettings() {
   const wrap = document.createDocumentFragment();
 
@@ -1817,6 +1850,17 @@ function screenSettings() {
   const install = el('div', 'card');
   install.append(el('div', 'small muted', 'Safari → «Поделиться» → «На экран Домой». Появится иконка, приложение откроется без адресной строки и будет работать офлайн.'));
   wrap.append(install);
+
+  wrap.append(el('h2', 'section', 'Справка'));
+  const helpCard = el('div', 'card');
+  helpCard.append(el('div', 'strong', 'Как пользоваться'));
+  helpCard.append(el('div', 'small muted', 'Избранное, календарь, правки игроков, напоминания — коротко'));
+  const helpBtn = el('a', 'btn btn-ghost', 'Открыть инструкцию');
+  helpBtn.href = '#/help';
+  helpBtn.style.marginTop = '10px';
+  helpBtn.style.display = 'inline-flex';
+  helpCard.append(helpBtn);
+  wrap.append(helpCard);
 
   wrap.append(el('h2', 'section', 'Ручная группировка игроков'));
   const grouping = el('div', 'card');
@@ -1957,6 +2001,11 @@ function render() {
     const division = S.divisions.get(parts[1]);
     content = screenDivision(parts[1], parts[2]);
     if (division) { title = division.competition; subtitle = divisionSubtitle(division); }
+    back = true;
+  } else if (route === 'help') {
+    content = screenHelp();
+    title = 'Как пользоваться';
+    subtitle = 'Короткая инструкция';
     back = true;
   } else if (route === 'team') {
     const team = S.teams.get(parts[1]);

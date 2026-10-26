@@ -72,9 +72,14 @@ private val MONTHS = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(onOpenGame: (Game) -> Unit) {
-    var gender by rememberSaveable { mutableStateOf("all") }
-    var divisionId by rememberSaveable { mutableStateOf(0) }
-    var monthMode by rememberSaveable { mutableStateOf(false) }
+    var gender by rememberSaveable { mutableStateOf(ru.example.pitervolley.data.UiState.calendarGender) }
+    var divisionId by rememberSaveable { mutableStateOf(ru.example.pitervolley.data.UiState.calendarDivision) }
+    var monthMode by rememberSaveable { mutableStateOf(ru.example.pitervolley.data.UiState.calendarMonthMode) }
+    androidx.compose.runtime.LaunchedEffect(gender, divisionId, monthMode) {
+        ru.example.pitervolley.data.UiState.calendarGender = gender
+        ru.example.pitervolley.data.UiState.calendarDivision = divisionId
+        ru.example.pitervolley.data.UiState.calendarMonthMode = monthMode
+    }
     var monthIso by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
     var calShowPast by rememberSaveable { mutableStateOf(false) }
     var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }

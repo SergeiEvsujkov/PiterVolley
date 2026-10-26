@@ -44,8 +44,12 @@ import ru.example.pitervolley.ui.genderColor
 
 @Composable
 fun DivisionsScreen(onOpenDivision: (Int) -> Unit) {
-    var gender by rememberSaveable { mutableStateOf("all") }
-    var year by rememberSaveable { mutableStateOf(0) }
+    var gender by rememberSaveable { mutableStateOf(ru.example.pitervolley.data.UiState.divisionsGender) }
+    var year by rememberSaveable { mutableStateOf(ru.example.pitervolley.data.UiState.divisionsYear) }
+    androidx.compose.runtime.LaunchedEffect(gender, year) {
+        ru.example.pitervolley.data.UiState.divisionsGender = gender
+        ru.example.pitervolley.data.UiState.divisionsYear = year
+    }
 
     val favoriteTeams by Favorites.teams.collectAsState()
     val favoritePersons by Favorites.persons.collectAsState()
