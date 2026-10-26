@@ -217,6 +217,7 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
                     playerId = entry.arguments?.getString("playerId").orEmpty(),
                     onBack = { nav.popBackStack() },
                     onOpenTeam = { nav.navigate("team/$it") },
+                    onOpenGame = { nav.navigate("game/${it.divisionId}/${it.id}") },
                 )
             }
             composable(

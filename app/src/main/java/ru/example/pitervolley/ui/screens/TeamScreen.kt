@@ -1,6 +1,8 @@
 package ru.example.pitervolley.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -208,7 +210,12 @@ private fun PlayerCardSmall(player: Player, modifier: Modifier = Modifier, onCli
 }
 
 @Composable
-fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> Unit) {
+fun PlayerScreen(
+    playerId: String,
+    onBack: () -> Unit,
+    onOpenTeam: (String) -> Unit,
+    onOpenGame: (Game) -> Unit,
+) {
     val player = Repo.data.players.firstOrNull { it.id == playerId }
     if (player == null) {
         ScreenScaffold(title = "Игрок", onBack = onBack) { p ->
@@ -223,6 +230,7 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
     val favorites by Favorites.persons.collectAsState()
     val isFavorite = person != null && Favorites.isPersonFavorite(person.key, favorites)
     var mergeDialog by remember { mutableStateOf(false) }
+    var playerShowPast by remember { mutableStateOf(false) }
 
     ScreenScaffold(
         title = player.name,
@@ -232,7 +240,8 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PlayerAvatar(player.photo, player.name, 120)
@@ -359,6 +368,50 @@ fun PlayerScreen(playerId: String, onBack: () -> Unit, onOpenTeam: (String) -> U
                     }
                 }
             }
+            if (teams.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { if (playerShowPast) playerShowPast = false }) {
+                        Text(
+                            "Ближайшие",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (playerShowPast) FontWeight.Medium else FontWeight.Bold,
+                            color = if (playerShowPast) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    TextButton(onClick = { if (!playerShowPast) playerShowPast = true }) {
+                        Text(
+                            "Прошедшие",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (playerShowPast) FontWeight.Bold else FontWeight.Medium,
+                            color = if (playerShowPast) MaterialTheme.colorScheme.onBackground
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                val teamIds = remember(person) { teams.map { it.id }.toSet() }
+                val playerGames = remember(revision, playerId) {
+                    Repo.data.games.filter { it.homeId in teamIds || it.awayId in teamIds }
+                }
+                val playerFeed = remember(playerGames, playerShowPast) {
+                    if (playerShowPast) {
+                        playerGames.filter { Repo.isPastGame(it) }
+                            .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
+                    } else {
+                        playerGames.filter { !Repo.isPastGame(it) }
+                            .sortedWith(compareBy({ it.localDate }, { it.time }))
+                    }
+                }
+                if (playerFeed.isEmpty()) {
+                    EmptyState(if (playerShowPast) "Прошедших игр пока нет" else "Ближайших игр пока нет")
+                } else {
+                    playerFeed.take(12).forEach { game ->
+                        GameCard(game, onClick = { onOpenGame(game) }, showDivision = true)
+                    }
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
             Text(
                 "Статистика игрока появится, когда федерация начнёт публиковать протоколы.",

@@ -95,6 +95,7 @@ const S = {
   calMonth: null,
   calDay: null,
   calPast: false,
+  playerPast: false,
   homePast: false,
   favPast: false,
   calDivision: 0,
@@ -1206,6 +1207,29 @@ function screenPlayer(key, playerId) {
     });
     notice.append(reset);
     wrap.append(notice);
+  }
+
+  if (person.teams.length) {
+    const teamIds = new Set(person.teams.map(team => team.id));
+    const playerGames = S.data.games.filter(game => teamIds.has(game.homeId) || teamIds.has(game.awayId));
+    const playerShowPast = !!S.playerPast;
+    const playerTabs = el('div', 'seghead');
+    for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
+      const button = el('button', (value === playerShowPast ? 'on ' : '') + 'segbtn', label);
+      button.addEventListener('click', () => {
+        if (value !== playerShowPast) { anchorTabs(playerTabs); S.playerPast = value; render(); }
+      });
+      playerTabs.append(button);
+    }
+    wrap.append(playerTabs);
+
+    const playerFeed = (playerShowPast
+      ? playerGames.filter(isPastGame).sort((a, b) => sortGames(b, a))
+      : playerGames.filter(game => gameStart(game) != null && !isPastGame(game)).sort(sortGames));
+    if (!playerFeed.length) {
+      wrap.append(el('div', 'empty', playerShowPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
+    }
+    for (const game of playerFeed.slice(0, 12)) wrap.append(gameCard(game));
   }
 
   wrap.append(el('div', 'caption', 'Статистика игрока появится, когда федерация начнёт публиковать протоколы.'));
