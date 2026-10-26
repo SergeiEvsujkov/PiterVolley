@@ -96,6 +96,7 @@ const S = {
   calDay: null,
   calPast: false,
   playerPast: false,
+  teamPast: false,
   homePast: false,
   favPast: false,
   calDivision: 0,
@@ -1109,7 +1110,7 @@ function screenTeam(teamId) {
   const division = S.divisions.get(team.divisionId);
   const wrap = document.createDocumentFragment();
 
-  const profile = el('div', 'profile');
+  const profile = el('div', 'profile pinned');
   profile.append(teamLogo(team));
   const info = el('div');
   info.append(el('h3', null, team.name));
@@ -1144,13 +1145,24 @@ function screenTeam(teamId) {
   }
   wrap.append(grid);
 
-  const games = S.data.games
-    .filter(g => g.homeId === team.id || g.awayId === team.id)
-    .sort(sortGames);
-  if (games.length) {
-    wrap.append(el('h2', 'section', 'Игры команды'));
-    for (const game of games) wrap.append(gameCard(game));
+  const teamGames = S.data.games.filter(g => g.homeId === team.id || g.awayId === team.id);
+  const teamShowPast = !!S.teamPast;
+  const teamTabs = el('div', 'seghead');
+  for (const [value, label] of [[false, 'Ближайшие'], [true, 'Прошедшие']]) {
+    const button = el('button', (value === teamShowPast ? 'on ' : '') + 'segbtn', label);
+    button.addEventListener('click', () => {
+      if (value !== teamShowPast) { anchorTabs(teamTabs); S.teamPast = value; render(); }
+    });
+    teamTabs.append(button);
   }
+  wrap.append(teamTabs);
+  const teamFeed = teamShowPast
+    ? teamGames.filter(isPastGame).sort((a, b) => sortGames(b, a))
+    : teamGames.filter(game => !isPastGame(game)).sort(sortGames);
+  if (!teamFeed.length) {
+    wrap.append(el('div', 'empty', teamShowPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
+  }
+  for (const game of teamFeed) wrap.append(gameCard(game));
   return wrap;
 }
 
@@ -1175,7 +1187,7 @@ function screenPlayer(key, playerId) {
 
   const wrap = document.createDocumentFragment();
 
-  const profile = el('div', 'profile');
+  const profile = el('div', 'profile pinned');
   profile.append(personAvatar(person));
   const info = el('div');
   info.append(el('h3', null, person.name));
@@ -1994,6 +2006,8 @@ function render() {
   }
 
   setHeader(title, subtitle, back);
+  const topbar = document.querySelector('.topbar');
+  if (topbar) document.documentElement.style.setProperty('--topbar-h', topbar.offsetHeight + 'px');
   app.replaceChildren(content);
   restoreScroll();
   document.querySelectorAll('#tabbar a').forEach(a => {

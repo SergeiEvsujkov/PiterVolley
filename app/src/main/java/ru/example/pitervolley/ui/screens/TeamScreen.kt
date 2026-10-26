@@ -1,5 +1,6 @@
 package ru.example.pitervolley.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.stickyHeader
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -23,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +52,7 @@ import ru.example.pitervolley.ui.PlayerAvatar
 import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.TeamLogo
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TeamScreen(
     teamId: String,
@@ -69,6 +73,7 @@ fun TeamScreen(
     val games = Repo.gamesOfTeam(teamId)
     val favorites by Favorites.teams.collectAsState()
     val isFavorite = teamId in favorites
+    var teamShowPast by remember { mutableStateOf(false) }
 
     ScreenScaffold(
         title = team.name,
@@ -76,7 +81,8 @@ fun TeamScreen(
         onBack = onBack,
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-            item {
+            stickyHeader {
+                Surface(color = MaterialTheme.colorScheme.background) {
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -116,6 +122,7 @@ fun TeamScreen(
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
+                }
                 }
             }
 
@@ -168,14 +175,49 @@ fun TeamScreen(
             }
 
             item {
-                Text(
-                    "Игры команды",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 16.dp, top = 5.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { if (teamShowPast) teamShowPast = false }) {
+                        Text(
+                            "Ближайшие",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (teamShowPast) FontWeight.Medium else FontWeight.Bold,
+                            color = if (teamShowPast) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    TextButton(onClick = { if (!teamShowPast) teamShowPast = true }) {
+                        Text(
+                            "Прошедшие",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (teamShowPast) FontWeight.Bold else FontWeight.Medium,
+                            color = if (teamShowPast) MaterialTheme.colorScheme.onBackground
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
-            items(games, key = { "${it.divisionId}-${it.id}" }) { game ->
+            val teamFeed = remember(games, teamShowPast) {
+                if (teamShowPast) {
+                    games.filter { Repo.isPastGame(it) }
+                        .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
+                } else {
+                    games.filter { !Repo.isPastGame(it) }
+                        .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
+                }
+            }
+            if (teamFeed.isEmpty()) {
+                item {
+                    ru.example.pitervolley.ui.EmptyState(
+                        if (teamShowPast) "Прошедших игр пока нет" else "Ближайших игр пока нет",
+                    )
+                }
+            }
+            items(teamFeed, key = { "${it.divisionId}-${it.id}" }) { game ->
                 GameCard(game, onClick = { onOpenGame(game) })
             }
             item { Spacer(Modifier.height(24.dp)) }
@@ -236,13 +278,8 @@ fun PlayerScreen(
         title = player.name,
         onBack = onBack,
     ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PlayerAvatar(player.photo, player.name, 120)
                 Spacer(Modifier.width(16.dp))
@@ -267,7 +304,14 @@ fun PlayerScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            ) {
+            Spacer(Modifier.height(16.dp))
             DividerLine()
             Spacer(Modifier.height(16.dp))
             if (teams.isNotEmpty()) {
@@ -421,6 +465,7 @@ fun PlayerScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            }
         }
     }
 
