@@ -1214,7 +1214,10 @@ function screenPlayer(key, playerId) {
   }
 
   // если страница открыта без id записи (из избранного), берём первую запись человека
-  const activePlayer = player || person.players[0] || null;
+  const activePlayer = player
+    || person.players.find(item => !S.splits.has(item.id))
+    || person.players[0]
+    || null;
   const sameBaseRecords = activePlayer
     ? S.data.players.filter(item => item.id !== activePlayer.id && baseKey(item) === baseKey(activePlayer))
     : [];

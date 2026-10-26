@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.stickyHeader
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -74,6 +73,15 @@ fun TeamScreen(
     val favorites by Favorites.teams.collectAsState()
     val isFavorite = teamId in favorites
     var teamShowPast by remember { mutableStateOf(false) }
+    val teamFeed = remember(teamId, teamShowPast) {
+        if (teamShowPast) {
+            games.filter { Repo.isPastGame(it) }
+                .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
+        } else {
+            games.filter { !Repo.isPastGame(it) }
+                .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
+        }
+    }
 
     ScreenScaffold(
         title = team.name,
@@ -199,15 +207,6 @@ fun TeamScreen(
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-            }
-            val teamFeed = remember(games, teamShowPast) {
-                if (teamShowPast) {
-                    games.filter { Repo.isPastGame(it) }
-                        .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
-                } else {
-                    games.filter { !Repo.isPastGame(it) }
-                        .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
                 }
             }
             if (teamFeed.isEmpty()) {
@@ -366,7 +365,8 @@ fun PlayerScreen(
                         val sameBase = Repo.data.players.any {
                             it.id != player.id && Repo.baseKeyOf(it) == baseKey
                         }
-                        if (person.players.size > 1 || sameBase) {
+                        val alreadySplit = PersonOverrides.isSplit(player.id)
+                        if (!alreadySplit && (person.players.size > 1 || sameBase)) {
                             OutlinedButton(
                                 onClick = {
                                     person.players
