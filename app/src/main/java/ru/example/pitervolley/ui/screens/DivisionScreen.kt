@@ -41,7 +41,7 @@ import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.TeamLogo
 
 private val PREMIER_TABS = listOf("Таблица", "Игры", "Команды")
-private val CHAMPIONSHIP_TABS = listOf("Таблица", "Общая", "Игры", "Команды")
+private val CHAMPIONSHIP_TABS = listOf("Таблица", "Игры", "Команды")
 
 @Composable
 fun DivisionScreen(
@@ -61,11 +61,14 @@ fun DivisionScreen(
     val isChampionship = Repo.isChampionship(division)
     val tabs = if (isChampionship) CHAMPIONSHIP_TABS else PREMIER_TABS
     val revision = Repo.revision.collectAsState().value
-    val standings = remember(divisionId, revision) {
-        Repo.siteStandings(divisionId) ?: Repo.standings(divisionId)
-    }
-    val combined = remember(divisionId, isChampionship) {
-        if (isChampionship) Repo.combinedStandings(divisionId) else emptyList()
+    val standings = remember(divisionId, revision, isChampionship) {
+        if (isChampionship) {
+            Repo.championshipStandings(divisionId)
+                ?: Repo.siteStandings(divisionId)
+                ?: Repo.standings(divisionId)
+        } else {
+            Repo.siteStandings(divisionId) ?: Repo.standings(divisionId)
+        }
     }
     val games = remember(divisionId) { Repo.gamesOf(divisionId) }
     val teams = remember(divisionId) { Repo.teamsOf(divisionId) }
@@ -92,7 +95,6 @@ fun DivisionScreen(
             }
             when (tabs.getOrNull(tab) ?: "Таблица") {
                 "Таблица" -> StandingsTab(standings, onOpenTeam, isChampionship)
-                "Общая" -> CombinedTab(combined, onOpenTeam)
                 "Игры" -> GamesTab(games, onOpenGame)
                 else -> TeamsTab(teams, onOpenTeam)
             }
@@ -143,13 +145,23 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, 
                 )
                 TeamLogo(row.team, 22)
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    row.team.name,
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        row.team.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (row.note.isNotBlank()) {
+                        Text(
+                            row.note,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 Text(row.played.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 Text(row.wins.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 Text(row.losses.toString(), Modifier.widthIn(min = 26.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)

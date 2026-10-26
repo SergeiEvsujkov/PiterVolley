@@ -210,6 +210,40 @@ object Repo {
 
     // ---------------------------------------------------------------- standings
 
+    /** Общая таблица Чемпионата с сайта: одна строка на клуб. */
+    fun championshipStandings(divisionId: Int): List<StandingRow>? {
+        val division = divisionById[divisionId] ?: return null
+        if (division.birthYear != null || division.teamLabel == null) return null
+        val pair = data.divisions
+            .filter {
+                it.competition == division.competition && it.gender == division.gender &&
+                    it.birthYear == null
+            }
+            .map { it.id }
+            .sorted()
+            .joinToString("-")
+        val rows = data.championship[pair] ?: return null
+        if (rows.isEmpty()) return null
+        val pairDivisions = data.divisions.filter { it.id in pair.split("-").mapNotNull { it.toIntOrNull() } }.map { it.id }.toSet()
+        val pairTeams = data.teams.filter { it.divisionId in pairDivisions }
+        val result = rows.mapNotNull { row ->
+            val team = pairTeams.firstOrNull { it.name == row.name } ?: return@mapNotNull null
+            StandingRow(team).apply {
+                note = ""
+                played = row.played
+                wins = row.wins
+                losses = row.losses
+                points = row.points
+                val parts = row.sets.split(":")
+                if (parts.size == 2) {
+                    setsFor = parts[0].trim().toIntOrNull() ?: 0
+                    setsAgainst = parts[1].trim().toIntOrNull() ?: 0
+                }
+            }
+        }
+        return result.ifEmpty { null }
+    }
+
     /** Таблица, снятая с сайта (готовая, не считаем сами). */
     fun siteStandings(divisionId: Int): List<StandingRow>? {
         val rows = data.standings[divisionId.toString()] ?: return null
@@ -508,6 +542,7 @@ object Repo {
 }
 
 data class StandingRow(val team: Team) {
+    var note: String = ""
     var played: Int = 0
     var wins: Int = 0
     var losses: Int = 0

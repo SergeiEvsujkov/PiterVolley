@@ -17,6 +17,8 @@ data class Dataset(
     val slots: List<Slot> = emptyList(),
     /** Готовые таблицы дивизионов, снятые с сайта. */
     val standings: Map<String, List<SiteStanding>> = emptyMap(),
+    /** Общая таблица Чемпионата (ключ «15-16» / «17-18»). */
+    val championship: Map<String, List<SiteStanding>> = emptyMap(),
     /** Какие источники собрал ETL при публикации данных (новые файлы). */
     val sources: Sources? = null,
 )
@@ -137,6 +139,7 @@ data class SiteStanding(
     val losses: Int = 0,
     val points: Int = 0,
     val sets: String = "",
+    val short: String = "",
 )
 
 // ------------------------------------------------------------------ date helpers

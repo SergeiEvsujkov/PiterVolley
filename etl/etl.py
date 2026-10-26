@@ -242,6 +242,73 @@ def render_html(url, budget=6000):
     return None
 
 
+def parse_combined_standings(html):
+    """Общая таблица Чемпионата: одна строка на клуб, внутри — 1-я и 2-я команды."""
+    from lxml import html as lxml_html
+
+    try:
+        doc = lxml_html.fromstring(html)
+    except Exception:
+        return []
+
+    tables = doc.xpath("//table[contains(concat(' ', normalize-space(@class), ' '), ' s-table ')]")
+    if not tables:
+        return []
+    table = tables[0]
+    body_rows = table.xpath("./tbody/tr") or table.xpath("./tr")[1:]
+    if not body_rows:
+        return []
+
+    def text_of(node):
+        return re.sub(r"\s+", " ", node.text_content()).strip()
+
+    rows = []
+    for row in body_rows:
+        cells = row.xpath("./td")
+        if not cells:
+            continue
+        name = text_of(cells[0])
+        if not name or name == "..." or name == "Команда":
+            continue
+
+        def by_class(name_part):
+            for cell in cells:
+                value = re.sub(r"\s+", "", cell.get("class") or "")
+                if name_part in value:
+                    return text_of(cell)
+            return ""
+
+        def number(value):
+            digits = re.sub(r"[^0-9]", "", value or "")
+            return int(digits) if digits else 0
+
+        split = ""
+        for cell in cells:
+            if "short-field" in (cell.get("class") or ""):
+                parts = []
+                for block in cell.xpath("./div"):
+                    score = re.sub(r"\s+", " ", block.text or "").strip()
+                    title_node = block.xpath("./div[contains(@class, 'short-title')]")
+                    title = text_of(title_node[0]) if title_node else ""
+                    parts.append(("%s %s" % (title, score)).strip())
+                split = " · ".join(p for p in parts if p)
+                break
+
+        rows.append({
+            "teamId": "",
+            "name": name,
+            "short": split,
+            "place": len(rows) + 1,
+            "played": number(by_class("total-games")),
+            "wins": number(by_class("total-wins")),
+            "losses": number(by_class("total-looses")),
+            "points": number(by_class("total-points")),
+            "sets": by_class("total-sets"),
+        })
+
+    return rows
+
+
 def parse_site_standings(html):
     """Готовая таблица со страницы: место, команда, И, В, П, О, Партии.
 
@@ -640,6 +707,7 @@ def main():
     players = []
     sources = {"site": False, "sheet": False}
     standings = {}
+    championship = {}
 
     try:
         for tid in range(1, 19):
@@ -701,6 +769,13 @@ def main():
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")
 
+    for pair in ("15-16", "17-18"):
+        page = render_html("%s/tables?tid=%s" % (SITE, pair), budget=12000)
+        rows = parse_combined_standings(page) if page else []
+        if rows:
+            championship[pair] = rows
+            log("общая таблица Чемпионата %s: %d клубов" % (pair, len(rows)))
+
     missing = [d for d in divisions if str(d.get("id")) not in standings]
     if missing:
         log("повторный рендер таблиц: %s" % ", ".join(str(d.get("id")) for d in missing))
@@ -739,6 +814,7 @@ def main():
         "divisions": divisions, "teams": teams, "players": players,
         "games": games, "slots": slots,
         "standings": {str(k): v for k, v in standings.items()},
+        "championship": championship,
     }
 
     out = os.path.join(OUT, "data.json")
