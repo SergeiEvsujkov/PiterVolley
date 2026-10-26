@@ -697,7 +697,7 @@ function isPastGame(game) {
 function screenHome() {
   const tracked = trackedTeamIds();
   const upcoming = S.data.games
-    .filter(g => { const start = gameStart(g); return start != null && !isPastGame(g); })
+    .filter(g => !isPastGame(g))
     .sort(sortGames)
     .slice(0, 6);
   const pastGames = S.data.games
@@ -705,7 +705,7 @@ function screenHome() {
     .sort((a, b) => sortGames(b, a))
     .slice(0, 6);
   const myUpcoming = S.data.games
-    .filter(g => (tracked.has(g.homeId) || tracked.has(g.awayId)) && gameStart(g) != null && !isPastGame(g))
+    .filter(g => (tracked.has(g.homeId) || tracked.has(g.awayId)) && !isPastGame(g))
     .sort(sortGames)
     .slice(0, 6);
   const myPast = S.data.games
@@ -1225,7 +1225,7 @@ function screenPlayer(key, playerId) {
 
     const playerFeed = (playerShowPast
       ? playerGames.filter(isPastGame).sort((a, b) => sortGames(b, a))
-      : playerGames.filter(game => gameStart(game) != null && !isPastGame(game)).sort(sortGames));
+      : playerGames.filter(game => !isPastGame(game)).sort(sortGames));
     if (!playerFeed.length) {
       wrap.append(el('div', 'empty', playerShowPast ? 'Прошедших игр пока нет' : 'Ближайших игр пока нет'));
     }

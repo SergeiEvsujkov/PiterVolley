@@ -180,11 +180,11 @@ object Repo {
         return start.plusHours(1).isBefore(java.time.LocalDateTime.now())
     }
 
-    /** Ближайшие игры: ещё не начавшиеся или начавшиеся меньше часа назад. */
+    /** Ближайшие игры: ещё не начавшиеся или начавшиеся меньше часа назад; без даты — в конце. */
     fun upcoming(limit: Int): List<Game> =
         data.games
-            .filter { it.localDate != null && !isPastGame(it) }
-            .sortedWith(compareBy({ it.localDate }, { it.time }))
+            .filter { !isPastGame(it) }
+            .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
             .take(limit)
 
     /** Прошедшие игры, свежие сверху. */

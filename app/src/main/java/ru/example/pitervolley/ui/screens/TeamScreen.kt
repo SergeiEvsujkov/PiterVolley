@@ -400,7 +400,7 @@ fun PlayerScreen(
                             .sortedWith(compareByDescending<Game> { it.localDate }.thenByDescending { it.time })
                     } else {
                         playerGames.filter { !Repo.isPastGame(it) }
-                            .sortedWith(compareBy({ it.localDate }, { it.time }))
+                            .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
                     }
                 }
                 if (playerFeed.isEmpty()) {

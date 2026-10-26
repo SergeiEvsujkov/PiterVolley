@@ -106,11 +106,8 @@ fun HomeScreen(
     }
     val favoriteGames = remember(revision, trackedTeamIds) {
         ds.games
-            .filter {
-                (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) &&
-                    it.localDate != null && !Repo.isPastGame(it)
-            }
-            .sortedWith(compareBy({ it.localDate }, { it.time }))
+            .filter { (it.homeId in trackedTeamIds || it.awayId in trackedTeamIds) && !Repo.isPastGame(it) }
+            .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
             .take(6)
     }
     var showPast by rememberSaveable { mutableStateOf(false) }
