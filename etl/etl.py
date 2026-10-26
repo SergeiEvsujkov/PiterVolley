@@ -652,6 +652,11 @@ def main():
     if not sources["site"] and not sources["sheet"]:
         raise SystemExit("no data sources available")
 
+    if standings:
+        log("таблицы с сайта: %d дивизионов" % len(standings))
+    else:
+        log("таблицы с сайта получить не удалось — приложение посчитает их само")
+
     matched, date_filled = match_slots(slots, games, divisions)
     venue_total = canonicalize_venues(games, slots)
 
