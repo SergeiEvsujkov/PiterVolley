@@ -1121,9 +1121,24 @@ function screenTeam(teamId) {
 }
 
 function screenPlayer(key, playerId) {
-  const person = S.persons.get(key);
-  if (!person) return el('div', 'empty', 'Игрок не найден');
   const player = playerId ? S.data.players.find(item => item.id === playerId) : null;
+
+  // ссылка может остаться от разъединённого игрока (ключ «id:…»):
+  // если человека по такому ключу нет, находим его по id записи
+  let resolvedKey = key;
+  let person = S.persons.get(resolvedKey);
+  if (!person && player) {
+    const byPlayer = S.playerPerson.get(player.id);
+    person = S.persons.get(byPlayer);
+    if (person) resolvedKey = byPlayer;
+  }
+  if (!person) return el('div', 'empty', 'Игрок не найден');
+
+  if (resolvedKey !== key) {
+    const suffix = player ? `/${player.id}` : '';
+    history.replaceState(null, '', `#/player/${encodeURIComponent(resolvedKey)}${suffix}`);
+  }
+
   const wrap = document.createDocumentFragment();
 
   const profile = el('div', 'profile');
@@ -1132,7 +1147,7 @@ function screenPlayer(key, playerId) {
   info.append(el('h3', null, person.name));
   if (person.birthYear) info.append(el('div', 'muted', `${person.birthYear} г.р.`));
   profile.append(info);
-  profile.append(starButton(isFavPerson(key), () => toggleFavPerson(key)));
+  profile.append(starButton(isFavPerson(resolvedKey), () => toggleFavPerson(resolvedKey)));
   wrap.append(profile);
 
   if (person.teams.length) {
@@ -1172,7 +1187,7 @@ function screenPlayer(key, playerId) {
     }
 
     const link = el('button', 'btn', 'Связать с игроком');
-    link.addEventListener('click', () => openMergeDialog(resolveKey(key)));
+    link.addEventListener('click', () => openMergeDialog(resolveKey(resolvedKey)));
     buttons.append(link);
     tools.append(buttons);
     wrap.append(tools);
