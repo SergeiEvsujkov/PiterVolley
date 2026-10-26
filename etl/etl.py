@@ -210,12 +210,18 @@ def render_html(url):
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--user-data-dir=" + profile,
-                "--virtual-time-budget=9000",
+                "--virtual-time-budget=4000",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-sync",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--metrics-recording-only",
                 "--dump-dom",
                 url,
             ],
             capture_output=True,
-            timeout=90,
+            timeout=30,
         )
     except Exception as error:
         log("render failed:", error)
@@ -598,11 +604,12 @@ def main():
         for tid in range(1, 19):
             url = "%s/table?tid=%d" % (SITE, tid)
             html = fetch(url, "table-%d.html" % tid)
-            rendered = render_html(url)
-            if rendered:
-                html = rendered
             div, dgames = parse_division(tid, html)
-            site_rows = parse_site_standings(html)
+            site_rows = []
+            if os.environ.get("VP_SKIP_RENDER") != "1":
+                rendered = render_html(url)
+                if rendered:
+                    site_rows = parse_site_standings(rendered)
             if site_rows:
                 standings[tid] = site_rows
                 log("tid=%-2d таблица с сайта: %d команд" % (tid, len(site_rows)))
