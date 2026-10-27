@@ -2082,7 +2082,8 @@ function render() {
   if (!S.data) return;
   const hash = location.hash || '#/home';
   const changing = lastHash !== null && lastHash !== hash;
-  if (changing) routeScroll[lastHash] = window.scrollY;
+  const currentScroll = window.scrollY;
+  if (changing) routeScroll[lastHash] = currentScroll;
   const raw = hash.replace(/^#\/?/, '');
   const parts = raw.split('/').filter(Boolean);
   const route = parts[0] || 'home';
@@ -2165,6 +2166,9 @@ function render() {
   } else if (changing) {
     const saved = routeScroll[hash];
     window.scrollTo(0, saved == null ? 0 : saved);
+  } else {
+    // чипы и фильтры на том же экране — это не переход, позицию не трогаем
+    window.scrollTo(0, currentScroll);
   }
   lastHash = hash;
   document.querySelectorAll('#tabbar a').forEach(a => {
@@ -2177,6 +2181,7 @@ $('#backBtn').addEventListener('click', () => { history.length > 1 ? history.bac
 $('#searchBtn').addEventListener('click', () => { location.hash = '#/search/'; render(); });
 $('#settingsBtn').addEventListener('click', () => { location.hash = '#/settings'; render(); });
 
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.addEventListener('hashchange', render);
 restoreUi();
 if (readCachedData()) render();
