@@ -137,6 +137,9 @@ const UI_DEFAULTS = { gender: 'all', year: 0, calDivision: 0, calMode: 'list', c
 
 // Переключение лент не должно уводить экран вверх: запоминаем положение вкладок.
 let scrollAnchor = null;
+// позиция прокрутки каждого экрана: при возврате назад экран открывается там же
+const routeScroll = {};
+let lastHash = null;
 
 function anchorTabs(node) {
   const list = [...document.querySelectorAll('.seghead')];
@@ -2077,7 +2080,10 @@ function setHeader(title, subtitle, showBack) {
 
 function render() {
   if (!S.data) return;
-  const raw = (location.hash || '#/home').replace(/^#\/?/, '');
+  const hash = location.hash || '#/home';
+  const changing = lastHash !== null && lastHash !== hash;
+  if (changing) routeScroll[lastHash] = window.scrollY;
+  const raw = hash.replace(/^#\/?/, '');
   const parts = raw.split('/').filter(Boolean);
   const route = parts[0] || 'home';
   let content;
@@ -2154,7 +2160,13 @@ function render() {
   const topbar = document.querySelector('.topbar');
   if (topbar) document.documentElement.style.setProperty('--topbar-h', topbar.offsetHeight + 'px');
   app.replaceChildren(content);
-  restoreScroll();
+  if (scrollAnchor) {
+    restoreScroll();
+  } else if (changing) {
+    const saved = routeScroll[hash];
+    window.scrollTo(0, saved == null ? 0 : saved);
+  }
+  lastHash = hash;
   document.querySelectorAll('#tabbar a').forEach(a => {
     a.classList.toggle('on', a.dataset.tab === route);
   });
