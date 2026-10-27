@@ -1052,7 +1052,14 @@ function screenDivision(divisionId, tab) {
   const chips = el('div', 'chips');
   for (const [value, label] of tabs) {
     const chip = el('button', 'chip' + (current === value ? ' on' : ''), label);
-    chip.addEventListener('click', () => { location.hash = `#/division/${divisionId}/${value}`; });
+    chip.addEventListener('click', () => {
+      if (current === value) return;
+      // вкладки внутри дивизиона — не новый экран: заменяем запись истории
+      anchorTabs(chips);
+      history.replaceState(null, '', `#/division/${divisionId}/${value}`);
+      lastHash = location.hash;
+      render();
+    });
     chips.append(chip);
   }
   wrap.append(chips);
