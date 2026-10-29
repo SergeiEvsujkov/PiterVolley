@@ -399,8 +399,8 @@ def match_slots(slots, games, divisions):
 
     groups = {}
     for g in games:
-        if g.get("score"):
-            continue  # сыгранные матчи не трогаем
+        # таблица главнее сайта и для сыгранных матчей: дату/время/зал
+        # берём из неё, результат при этом не меняется
         d = div_by_id.get(g["divisionId"])
         if not d:
             continue
