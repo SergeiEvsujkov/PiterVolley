@@ -3,6 +3,7 @@
   "short_name": "VolleyPiter",
   "description": "Первенство и Чемпионат Санкт-Петербурга по волейболу: календарь, результаты, таблицы, команды и игроки.",
   "lang": "ru",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
