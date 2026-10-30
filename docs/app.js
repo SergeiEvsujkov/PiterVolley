@@ -1815,8 +1815,7 @@ function maybeShowCoachDay() {
   const now = new Date();
   if (now.getMonth() !== 9 || now.getDate() !== 30) return;
   const stamp = `${now.getFullYear()}-10-30`;
-  if (localStorage.getItem('vp.coachDay') === stamp) return;
-  localStorage.setItem('vp.coachDay', stamp);
+  if (localStorage.getItem('vp.coachDay.v2') === stamp) return;
 
   const overlay = el('div', 'modal');
   const sheet = el('div', 'sheet');
@@ -1841,13 +1840,20 @@ function maybeShowCoachDay() {
   body.append(el('p', 'small muted', 'Команда VolleyPiter'));
   sheet.append(body);
 
+  const dismiss = () => {
+    // отмечаем показанным только когда окно закрыли: если страница
+    // перезагрузится (обновление service worker), поздравление не потеряется
+    localStorage.setItem('vp.coachDay.v2', stamp);
+    overlay.remove();
+  };
+
   const thanks = el('button', 'btn', 'Спасибо');
   thanks.style.margin = '0 16px 16px';
-  thanks.addEventListener('click', () => overlay.remove());
+  thanks.addEventListener('click', dismiss);
   sheet.append(thanks);
 
-  close.addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  close.addEventListener('click', dismiss);
+  overlay.addEventListener('click', event => { if (event.target === overlay) dismiss(); });
   overlay.append(sheet);
   document.body.append(overlay);
 }
