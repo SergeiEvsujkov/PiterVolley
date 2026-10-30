@@ -1837,7 +1837,7 @@ function maybeShowCoachDay() {
   body.append(el('p', 'strong',
     'И напоминание: не забудьте поздравить своего тренера. ' +
     'Тёплые слова важны не меньше медалей.'));
-  body.append(el('p', 'small muted', 'Команда VolleyPiter'));
+  body.append(el('p', 'small muted', 'Сергей Евсюков'));
   sheet.append(body);
 
   const dismiss = () => {
