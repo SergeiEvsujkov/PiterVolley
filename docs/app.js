@@ -1810,6 +1810,48 @@ function buildSearchResults(query) {
 }
 
 
+// День тренера — 30 октября. Показываем поздравление один раз за день.
+function maybeShowCoachDay() {
+  const now = new Date();
+  if (now.getMonth() !== 9 || now.getDate() !== 30) return;
+  const stamp = `${now.getFullYear()}-10-30`;
+  if (localStorage.getItem('vp.coachDay') === stamp) return;
+  localStorage.setItem('vp.coachDay', stamp);
+
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', 'С Днём тренера!'));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const body = el('div', 'coachday');
+  body.style.padding = '0 16px 16px';
+  body.append(el('p', null,
+    'Сегодня — День тренера. Поздравляем всех тренеров петербургского волейбола: ' +
+    'тех, кто ведёт команды к победам, и тех, кто только учит держать мяч.'));
+  body.append(el('p', null,
+    'Спасибо за терпение, за ранние тренировки и поздние разборы игр, ' +
+    'за веру в игроков — даже когда они сами в себя не верят.'));
+  body.append(el('p', 'strong',
+    'И напоминание: не забудьте поздравить своего тренера. ' +
+    'Тёплые слова важны не меньше медалей.'));
+  body.append(el('p', 'small muted', 'Команда VolleyPiter'));
+  sheet.append(body);
+
+  const thanks = el('button', 'btn', 'Спасибо');
+  thanks.style.margin = '0 16px 16px';
+  thanks.addEventListener('click', () => overlay.remove());
+  sheet.append(thanks);
+
+  close.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
+}
+
 function screenHelp() {
   const wrap = document.createDocumentFragment();
   const sections = [
@@ -2193,6 +2235,7 @@ window.addEventListener('hashchange', render);
 restoreUi();
 if (readCachedData()) render();
 loadData(true);
+setTimeout(maybeShowCoachDay, 700);
 
 // возврат в приложение: если данные старше 10 минут — обновляем
 document.addEventListener('visibilitychange', () => {
