@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,9 +46,18 @@ fun SearchScreen(
         if (q.length < MIN_QUERY) emptyList()
         else Repo.data.teams.filter { it.name.lowercase().contains(q) }.take(30)
     }
-    val players = remember(q) {
+    val revision = Repo.revision.collectAsState().value
+    // один и тот же игрок может быть заявлен за несколько команд:
+    // в результатах поиска показываем его один раз
+    val persons = remember(q, revision) {
         if (q.length < MIN_QUERY) emptyList()
-        else Repo.data.players.filter { it.name.lowercase().contains(q) }.take(30)
+        else Repo.data.players
+            .asSequence()
+            .filter { it.name.lowercase().contains(q) }
+            .mapNotNull { Repo.person(Repo.personKeyOf(it)) }
+            .distinctBy { it.key }
+            .take(30)
+            .toList()
     }
     val divisions = remember(q) {
         if (q.length < MIN_QUERY) emptyList()
@@ -68,7 +78,7 @@ fun SearchScreen(
 
             when {
                 q.length < MIN_QUERY -> EmptyState("Введите хотя бы $MIN_QUERY символа")
-                teams.isEmpty() && players.isEmpty() && divisions.isEmpty() -> EmptyState("Ничего не найдено")
+                teams.isEmpty() && persons.isEmpty() && divisions.isEmpty() -> EmptyState("Ничего не найдено")
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     if (teams.isNotEmpty()) {
                         item { Header("Команды · ${teams.size}") }
@@ -91,18 +101,20 @@ fun SearchScreen(
                             DividerLine()
                         }
                     }
-                    if (players.isNotEmpty()) {
-                        item { Header("Игроки · ${players.size}") }
-                        items(players, key = { "p-${it.id}" }) { player ->
-                            ClickableRow({ onOpenPlayer(player.id) }) {
-                                PlayerAvatar(player.photo, player.name, 36)
+                    if (persons.isNotEmpty()) {
+                        item { Header("Игроки · ${persons.size}") }
+                        items(persons, key = { "p-${it.key}" }) { person ->
+                            ClickableRow({
+                                person.players.firstOrNull()?.let { onOpenPlayer(it.id) }
+                            }) {
+                                PlayerAvatar(person.photo, person.name, 36)
                                 Spacer(Modifier.padding(start = 12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(player.name, style = MaterialTheme.typography.bodyLarge)
+                                    Text(person.name, style = MaterialTheme.typography.bodyLarge)
                                     Text(
                                         listOfNotNull(
-                                            player.birthYear?.let { "$it г.р." },
-                                            Repo.team(player.teamId)?.name,
+                                            person.birthYear?.let { "$it г.р." },
+                                            person.teams.joinToString(", ") { it.name }.ifBlank { null },
                                         ).joinToString(" · "),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
