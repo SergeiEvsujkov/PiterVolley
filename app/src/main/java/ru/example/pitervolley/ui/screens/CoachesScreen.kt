@@ -62,14 +62,14 @@ fun CoachesScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(entry.coach.name, style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    entry.teams.joinToString(", ") { team ->
-                                        val division = Repo.division(team.divisionId)
-                                        if (division != null) "${team.name} · ${division.subtitle}" else team.name
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                entry.teams.forEach { team ->
+                                    val division = Repo.division(team.divisionId)
+                                    Text(
+                                        if (division != null) "${team.name} · ${division.subtitle}" else team.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                             Text("›", style = MaterialTheme.typography.titleLarge)
                         }

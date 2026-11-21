@@ -1884,10 +1884,10 @@ function screenCoaches() {
       row.append(personAvatar(item.coach));
       const text = el('div', 'grow');
       text.append(el('div', null, item.coach.name));
-      text.append(el('div', 'small muted', item.teams.map(team => {
+      for (const team of item.teams) {
         const division = S.divisions.get(team.divisionId);
-        return division ? `${team.name} · ${divisionSubtitle(division)}` : team.name;
-      }).join(', ')));
+        text.append(el('div', 'small muted', division ? `${team.name} · ${divisionSubtitle(division)}` : team.name));
+      }
       row.append(text, chevron());
       row.addEventListener('click', () => {
         const team = item.teams[0];
