@@ -229,11 +229,21 @@ def parse_team_page(html):
         logo = SITE + "/" + m.group(1).lstrip("/")
 
     players = []
+    coaches = []
     for b in re.split(r"player-card", html)[1:]:
-        pid = re.search(r"player\?pid=(\d+)", b)
         name = re.search(r"<strong>([^<]+)</strong>", b)
-        year = re.search(r"(\d{4})\s*г\.р\.", b)
         photo = re.search(r'<img src="([^"]+)"', b)
+        if "coach-tag" in b:
+            cid = re.search(r"coach\?cid=(\d+)", b)
+            if cid and name:
+                coaches.append({
+                    "id": cid.group(1),
+                    "name": strip_tags(name.group(1)),
+                    "photo": (SITE + "/" + photo.group(1).lstrip("/")) if photo else None,
+                })
+            continue
+        pid = re.search(r"player\?pid=(\d+)", b)
+        year = re.search(r"(\d{4})\s*г\.р\.", b)
         if not (pid and name):
             continue
         players.append({
@@ -242,7 +252,7 @@ def parse_team_page(html):
             "birthYear": int(year.group(1)) if year else None,
             "photo": (SITE + "/" + photo.group(1).lstrip("/")) if photo else None,
         })
-    return logo, players
+    return logo, players, coaches
 
 
 # ---------------------------------------------------------------- google sheet
@@ -485,8 +495,9 @@ def main():
 
         for i, t in enumerate(teams, 1):
             html = fetch("%s/team?team=%s" % (SITE, t["id"]), "team-%s.html" % t["id"])
-            logo, tplayers = parse_team_page(html)
+            logo, tplayers, tcoaches = parse_team_page(html)
             t["logo"] = logo
+            t["coaches"] = tcoaches
             for p in tplayers:
                 p["teamId"] = t["id"]
                 p["divisionId"] = t["divisionId"]

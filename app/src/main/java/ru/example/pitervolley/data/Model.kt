@@ -57,11 +57,19 @@ data class Division(
 }
 
 @Serializable
+data class Coach(
+    val id: String = "",
+    val name: String = "",
+    val photo: String? = null,
+)
+
+@Serializable
 data class Team(
     val id: String,
     val name: String = "",
     val divisionId: Int = 0,
     val logo: String? = null,
+    val coaches: List<Coach> = emptyList(),
 )
 
 @Serializable

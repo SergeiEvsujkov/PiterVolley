@@ -15,6 +15,7 @@ class VolleyPiterApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         ru.example.pitervolley.data.UiState.init(this)
+        ru.example.pitervolley.data.TeamLinks.init(this)
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

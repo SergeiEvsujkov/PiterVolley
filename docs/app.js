@@ -88,6 +88,8 @@ const S = {
   favTeams: new Set((JSON.parse(localStorage.getItem('vp.favTeams') || '[]')).map(String)),
   favPersons: new Set(JSON.parse(localStorage.getItem('vp.favPersons') || '[]')),
   splits: new Set((JSON.parse(localStorage.getItem('vp.splits') || '[]')).map(String)),
+  teamLinks: new Map(Object.entries(JSON.parse(localStorage.getItem('vp.teamLinks') || '{}'))
+    .map(([teamId, ids]) => [String(teamId), new Set((ids || []).map(String))])),
   merges: new Map(Object.entries(JSON.parse(localStorage.getItem('vp.merges') || '{}'))),
   gender: 'all',
   year: 0,
@@ -189,6 +191,12 @@ function resetUi() {
   render();
 }
 
+function saveTeamLinks() {
+  const plain = {};
+  for (const [teamId, ids] of S.teamLinks) if (ids.size) plain[teamId] = [...ids];
+  localStorage.setItem('vp.teamLinks', JSON.stringify(plain));
+}
+
 function saveOverrides() {
   localStorage.setItem('vp.splits', JSON.stringify([...S.splits]));
   localStorage.setItem('vp.merges', JSON.stringify(Object.fromEntries(S.merges)));
@@ -233,6 +241,8 @@ function mergePerson(fromKey, toKey) {
 function resetOverrides() {
   S.splits.clear();
   S.merges.clear();
+  S.teamLinks.clear();
+  saveTeamLinks();
   saveOverrides();
   buildIndexes(S.data);
   render();
@@ -281,6 +291,15 @@ function buildIndexes(data) {
   }
   for (const p of data.players) {
     S.playerPerson.set(p.id, effectiveKey(p));
+  }
+  for (const [teamId, ids] of S.teamLinks) {
+    const team = S.teams.get(teamId);
+    if (!team) continue;
+    for (const id of ids) {
+      const player = data.players.find(item => item.id === id);
+      const person = player ? S.persons.get(effectiveKey(player)) : null;
+      if (person && !person.teams.some(item => item.id === team.id)) person.teams.push(team);
+    }
   }
 }
 
@@ -1042,6 +1061,82 @@ function openTeamChoice(club) {
   document.body.append(overlay);
 }
 
+function openAttachPlayer(team) {
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', 'Привязать игрока к команде'));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const hint = el('div', 'small muted',
+    'Если игрока нет в заявке на сайте, добавьте его в состав вручную. ' +
+    'Правка хранится только на этом устройстве.');
+  hint.style.padding = '0 16px 8px';
+  sheet.append(hint);
+
+  const box = el('div', 'searchbox');
+  const input = el('input');
+  input.type = 'search';
+  input.placeholder = 'Фамилия или имя';
+  box.append(input);
+  sheet.append(box);
+
+  const results = el('div', 'results');
+  sheet.append(results);
+
+  const existing = new Set([...S.data.players.filter(p => p.teamId === team.id).map(p => p.id)]);
+  for (const id of S.teamLinks.get(team.id) || []) existing.add(id);
+
+  const paint = value => {
+    const needle = fold(value || '');
+    results.replaceChildren();
+    if (needle.length < 2) {
+      results.append(el('div', 'empty', 'Введите хотя бы 2 символа'));
+      return;
+    }
+    const people = [...S.persons.values()]
+      .filter(person => person.name.toLowerCase().includes(needle) &&
+        person.players.some(player => !existing.has(player.id)))
+      .slice(0, 25);
+    if (!people.length) {
+      results.append(el('div', 'empty', 'Ничего не найдено'));
+      return;
+    }
+    for (const person of people) {
+      const row = el('div', 'row pad');
+      row.append(personAvatar(person));
+      const text = el('div', 'grow');
+      text.append(el('div', null, person.name));
+      text.append(el('div', 'small muted', [
+        person.birthYear ? `${person.birthYear} г.р.` : '',
+        person.teams.map(item => item.name).join(', '),
+      ].filter(Boolean).join(' · ')));
+      row.append(text, chevron());
+      row.addEventListener('click', () => {
+        const player = person.players.find(item => !existing.has(item.id)) || person.players[0];
+        if (!player) return;
+        if (!S.teamLinks.has(team.id)) S.teamLinks.set(team.id, new Set());
+        S.teamLinks.get(team.id).add(player.id);
+        saveTeamLinks();
+        buildIndexes(S.data);
+        overlay.remove();
+        render();
+      });
+      results.append(row);
+    }
+  };
+  paint('');
+  input.addEventListener('input', () => paint(input.value));
+
+  close.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
+}
+
 function screenDivision(divisionId, tab) {
   const division = S.divisions.get(divisionId);
   if (!division) return el('div', 'empty', 'Дивизион не найден');
@@ -1227,8 +1322,31 @@ function screenTeam(teamId) {
   profile.append(starButton(isFavTeam(team.id), () => toggleFavTeam(team.id)));
   wrap.append(profile);
 
-  const players = S.data.players.filter(p => p.teamId === team.id);
-  wrap.append(el('h2', 'section', `Состав · ${players.length}`));
+  if (team.coaches && team.coaches.length) {
+    wrap.append(el('h2', 'section', team.coaches.length > 1 ? 'Тренеры' : 'Тренер'));
+    const coachCard = el('div', 'card flush');
+    for (const coach of team.coaches) {
+      const row = el('div', 'row pad');
+      row.append(personAvatar(coach));
+      const text = el('div', 'grow');
+      text.append(el('div', null, coach.name));
+      text.append(el('div', 'small muted', 'Тренер'));
+      row.append(text);
+      coachCard.append(row);
+    }
+    wrap.append(coachCard);
+  }
+
+
+  const linkedIds = S.teamLinks.get(team.id) || new Set();
+  const basePlayers = S.data.players.filter(p => p.teamId === team.id);
+  const linkedPlayers = S.data.players.filter(p => linkedIds.has(p.id) && p.teamId !== team.id);
+  const players = [...basePlayers, ...linkedPlayers];
+  const rosterHead = el('h2', 'section', `Состав · ${players.length}`);
+  const addPlayer = el('button', 'linkish', 'Добавить игрока');
+  addPlayer.addEventListener('click', () => openAttachPlayer(team));
+  rosterHead.append(addPlayer);
+  wrap.append(rosterHead);
   if (!players.length) {
     const card = el('div', 'card');
     card.append(el('div', 'strong', 'Заявка ещё не опубликована'));

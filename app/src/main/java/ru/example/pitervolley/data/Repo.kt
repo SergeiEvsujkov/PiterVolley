@@ -81,7 +81,12 @@ object Repo {
     fun division(id: Int): Division? = divisionById[id]
     fun team(id: String): Team? = teamById[id]
     fun teamsOf(divisionId: Int): List<Team> = data.teams.filter { it.divisionId == divisionId }.sortedBy { it.name }
-    fun playersOf(teamId: String): List<Player> = playersByTeam[teamId].orEmpty()
+    fun playersOf(teamId: String): List<Player> {
+        val base = playersByTeam[teamId].orEmpty()
+        val extra = TeamLinks.playersOf(teamId).mapNotNull { id -> data.players.firstOrNull { it.id == id } }
+        if (extra.isEmpty()) return base
+        return (base + extra.filter { linked -> base.none { it.id == linked.id } })
+    }
 
     fun gamesOf(divisionId: Int): List<Game> =
         gamesByDivision[divisionId].orEmpty().sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
@@ -141,8 +146,12 @@ object Repo {
 
     fun playersOfPerson(key: String): List<Player> = playersByPerson[key].orEmpty()
 
-    fun teamsOfPerson(key: String): List<Team> =
-        playersOfPerson(key).mapNotNull { team(it.teamId) }.distinctBy { it.id }
+    fun teamsOfPerson(key: String): List<Team> {
+        val base = playersOfPerson(key).mapNotNull { team(it.teamId) }
+        val linked = playersOfPerson(key)
+            .flatMap { player -> TeamLinks.teamsOf(player.id).mapNotNull { team(it) } }
+        return (base + linked).distinctBy { it.id }
+    }
 
     fun person(key: String): Person? {
         val players = playersOfPerson(key)

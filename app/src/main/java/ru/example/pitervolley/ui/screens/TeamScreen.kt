@@ -73,6 +73,7 @@ fun TeamScreen(
     val favorites by Favorites.teams.collectAsState()
     val isFavorite = teamId in favorites
     var teamShowPast by remember { mutableStateOf(false) }
+    var addPlayerDialog by remember { mutableStateOf(false) }
     val teamFeed = remember(teamId, teamShowPast) {
         if (teamShowPast) {
             games.filter { Repo.isPastGame(it) }
@@ -81,6 +82,19 @@ fun TeamScreen(
             games.filter { !Repo.isPastGame(it) }
                 .sortedWith(compareBy({ it.localDate == null }, { it.localDate }, { it.time }))
         }
+    }
+
+    if (addPlayerDialog) {
+        AddPlayerDialog(
+            teamId = teamId,
+            existing = players.map { it.id }.toSet(),
+            onDismiss = { addPlayerDialog = false },
+            onPick = { playerId ->
+                ru.example.pitervolley.data.TeamLinks.add(teamId, playerId)
+                Repo.rebuildPersons()
+                addPlayerDialog = false
+            },
+        )
     }
 
     ScreenScaffold(
@@ -134,13 +148,51 @@ fun TeamScreen(
                 }
             }
 
+            if (team.coaches.isNotEmpty()) {
+                item {
+                    Text(
+                        if (team.coaches.size > 1) "Тренеры" else "Тренер",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                items(team.coaches, key = { "c-${it.id}" }) { coach ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlayerAvatar(coach.photo, coach.name, 44)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(coach.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Тренер",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
-                Text(
-                    "Состав · ${players.size}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Состав · ${players.size}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { addPlayerDialog = true }) {
+                        Text("Добавить игрока", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
             if (players.isEmpty()) {
                 item {
@@ -532,6 +584,65 @@ private fun MergePlayerDialog(
                                 ).joinToString(" · "),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+    )
+}
+
+@Composable
+private fun AddPlayerDialog(
+    teamId: String,
+    existing: Set<String>,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val results = remember(query, existing) {
+        val q = query.trim().lowercase()
+        if (q.length < 2) emptyList()
+        else Repo.data.players
+            .filter { it.id !in existing && it.name.lowercase().contains(q) }
+            .distinctBy { it.id }
+            .take(25)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Привязать игрока к команде") },
+        text = {
+            Column {
+                Text(
+                    "Если игрока нет в заявке на сайте, добавьте его в состав вручную.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text("Фамилия или имя") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(Modifier.heightIn(max = 280.dp)) {
+                    items(results, key = { "add-${it.id}" }) { player ->
+                        TextButton(onClick = { onPick(player.id) }) {
+                            Text(
+                                buildString {
+                                    append(player.name)
+                                    if (player.birthYear != null) append(", ${player.birthYear} г.р.")
+                                    val team = Repo.team(player.teamId)
+                                    if (team != null) append(" — ${team.name}")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }

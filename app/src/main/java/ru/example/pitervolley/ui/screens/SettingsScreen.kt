@@ -369,6 +369,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenHelp: () -> Unit = {}) {
                         enabled = splitCount > 0 || mergeCount > 0,
                         onClick = {
                             PersonOverrides.clear()
+                            ru.example.pitervolley.data.TeamLinks.clear()
                             Repo.rebuildPersons()
                             version++
                         },
