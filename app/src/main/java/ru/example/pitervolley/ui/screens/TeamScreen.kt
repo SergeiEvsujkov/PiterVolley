@@ -105,95 +105,94 @@ fun TeamScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding)) {
             stickyHeader {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (!team.logo.isNullOrBlank()) {
-                        AsyncImage(
-                            model = team.logo,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)),
-                        )
-                        Spacer(Modifier.width(14.dp))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(team.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        if (division != null) {
+                    Column {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (!team.logo.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = team.logo,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)),
+                                )
+                                Spacer(Modifier.width(14.dp))
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(team.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                if (division != null) {
+                                    Text(
+                                        division.subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "Перейти в дивизион ›",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .padding(top = 4.dp)
+                                            .clickable(onClick = { onOpenDivision(division.id) }),
+                                    )
+                                }
+                            }
+                            TextButton(onClick = { Favorites.toggle(team.id) }) {
+                                Text(
+                                    text = if (isFavorite) "★" else "☆",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+
+                        if (team.coaches.isNotEmpty()) {
                             Text(
-                                division.subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = "Перейти в дивизион ›",
+                                if (team.coaches.size > 1) "Тренеры" else "Тренер",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .padding(top = 4.dp)
-                                    .clickable(onClick = { onOpenDivision(division.id) }),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp),
                             )
+                            team.coaches.forEach { coach ->
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    PlayerAvatar(coach.photo, coach.name, 36)
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(coach.name, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            "Тренер",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
                         }
-                    }
-                    TextButton(onClick = { Favorites.toggle(team.id) }) {
-                        Text(
-                            text = if (isFavorite) "★" else "☆",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                }
-            }
 
-            if (team.coaches.isNotEmpty()) {
-                item {
-                    Text(
-                        if (team.coaches.size > 1) "Тренеры" else "Тренер",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-                items(team.coaches, key = { "c-${it.id}" }) { coach ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        PlayerAvatar(coach.photo, coach.name, 44)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(coach.name, style = MaterialTheme.typography.bodyMedium)
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                "Тренер",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                "Состав · ${players.size}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
                             )
+                            TextButton(onClick = { addPlayerDialog = true }) {
+                                Text("Добавить игрока", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
             }
 
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Состав · ${players.size}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = { addPlayerDialog = true }) {
-                        Text("Добавить игрока", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
             if (players.isEmpty()) {
                 item {
                     Card(

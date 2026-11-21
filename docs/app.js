@@ -1324,7 +1324,7 @@ function screenTeam(teamId) {
   const division = S.divisions.get(team.divisionId);
   const wrap = document.createDocumentFragment();
 
-  const profile = el('div', 'profile pinned');
+  const profile = el('div', 'profile');
   profile.append(teamLogo(team));
   const info = el('div');
   info.append(el('h3', null, team.name));
@@ -1336,21 +1336,20 @@ function screenTeam(teamId) {
   info.append(divisionLine);
   profile.append(info);
   profile.append(starButton(isFavTeam(team.id), () => toggleFavTeam(team.id)));
-  wrap.append(profile);
+  const teamHead = el('div', 'teamhead');
+  teamHead.append(profile);
 
   if (team.coaches && team.coaches.length) {
-    wrap.append(el('h2', 'section', team.coaches.length > 1 ? 'Тренеры' : 'Тренер'));
-    const coachCard = el('div', 'card flush');
+    teamHead.append(el('div', 'small muted teamhead-label', team.coaches.length > 1 ? 'Тренеры' : 'Тренер'));
     for (const coach of team.coaches) {
-      const row = el('div', 'row pad');
+      const row = el('div', 'row pad coachrow');
       row.append(personAvatar(coach));
       const text = el('div', 'grow');
       text.append(el('div', null, coach.name));
       text.append(el('div', 'small muted', 'Тренер'));
       row.append(text);
-      coachCard.append(row);
+      teamHead.append(row);
     }
-    wrap.append(coachCard);
   }
 
 
@@ -1362,7 +1361,8 @@ function screenTeam(teamId) {
   const addPlayer = el('button', 'linkish', 'Добавить игрока');
   addPlayer.addEventListener('click', () => openAttachPlayer(team));
   rosterHead.append(addPlayer);
-  wrap.append(rosterHead);
+  teamHead.append(rosterHead);
+  wrap.append(teamHead);
   if (!players.length) {
     const card = el('div', 'card');
     card.append(el('div', 'strong', 'Заявка ещё не опубликована'));

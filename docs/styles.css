@@ -319,3 +319,14 @@ a{color:inherit;text-decoration:none}
   .notice{background:#33280f;border-color:#5d4a1c;color:#ffd899}
   .profile.pinned{box-shadow:0 6px 12px -10px rgba(0,0,0,.65)}
 }
+
+/* карточка команды: профиль, тренер и состав закреплены вместе */
+.teamhead{
+  position:sticky;top:var(--topbar-h,64px);z-index:20;
+  background:var(--bg);margin:0 -16px 12px;padding:8px 16px 4px;
+  box-shadow:0 8px 14px -12px rgba(16,24,40,.35);
+}
+.teamhead .profile{margin:0 0 6px}
+.teamhead-label{margin:0 0 4px}
+.teamhead .coachrow{padding:4px 0}
+.teamhead h2.section{margin:8px 0 6px}
