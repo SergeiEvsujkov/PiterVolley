@@ -30,7 +30,7 @@ import ru.example.pitervolley.ui.ScreenScaffold
 @Composable
 fun CoachesScreen(
     onBack: () -> Unit,
-    onOpenTeam: (String) -> Unit,
+    onOpenCoach: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val q = query.trim().lowercase()
@@ -56,7 +56,7 @@ fun CoachesScreen(
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(coaches, key = { it.coach.id }) { entry ->
                         ClickableRow({
-                            entry.teams.firstOrNull()?.let { onOpenTeam(it.id) }
+                            onOpenCoach(Repo.coachNameKey(entry.coach.name))
                         }) {
                             PlayerAvatar(entry.coach.photo, entry.coach.name, 40)
                             Spacer(Modifier.width(12.dp))

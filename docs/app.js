@@ -1857,6 +1857,37 @@ function coachesList() {
   return [...map.values()].sort((a, b) => a.coach.name.localeCompare(b.coach.name, 'ru'));
 }
 
+function screenCoach(key) {
+  const needle = decodeURIComponent(key || '');
+  const entry = coachesList().find(item => coachNameKey(item.coach.name) === needle);
+  if (!entry) return el('div', 'empty', 'Тренер не найден');
+
+  const wrap = document.createDocumentFragment();
+  const profile = el('div', 'profile');
+  profile.append(personAvatar(entry.coach));
+  const info = el('div');
+  info.append(el('h3', null, entry.coach.name));
+  info.append(el('div', 'muted', 'Тренер'));
+  profile.append(info);
+  wrap.append(profile);
+
+  wrap.append(el('h2', 'section', `Команды тренера · ${entry.teams.length}`));
+  const card = el('div', 'card flush');
+  for (const team of entry.teams) {
+    const division = S.divisions.get(team.divisionId);
+    const row = el('div', 'row pad');
+    row.append(teamLogo(team));
+    const text = el('div', 'grow');
+    text.append(el('div', null, team.name));
+    text.append(el('div', 'small muted', division ? `${division.competition} · ${divisionSubtitle(division)}` : ''));
+    row.append(text, chevron());
+    row.addEventListener('click', () => { location.hash = `#/team/${team.id}`; });
+    card.append(row);
+  }
+  wrap.append(card);
+  return wrap;
+}
+
 function screenCoaches() {
   const wrap = document.createDocumentFragment();
   const box = el('div', 'searchbox');
@@ -1890,8 +1921,7 @@ function screenCoaches() {
       }
       row.append(text, chevron());
       row.addEventListener('click', () => {
-        const team = item.teams[0];
-        if (team) location.hash = `#/team/${team.id}`;
+        location.hash = `#/coach/${encodeURIComponent(coachNameKey(item.coach.name))}`;
       });
       card.append(row);
     }
@@ -2419,6 +2449,12 @@ function render() {
     content = screenCoaches();
     title = 'Тренеры';
     subtitle = 'Тренеры команд';
+    back = true;
+  } else if (route === 'coach') {
+    content = screenCoach(parts[1]);
+    const coachKey = decodeURIComponent(parts[1] || '');
+    const coachEntry = coachesList().find(item => coachNameKey(item.coach.name) === coachKey);
+    if (coachEntry) { title = coachEntry.coach.name; subtitle = 'Тренер'; }
     back = true;
   } else if (route === 'venues') {
     content = screenVenues();

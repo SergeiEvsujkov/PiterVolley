@@ -41,6 +41,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import ru.example.pitervolley.ui.screens.CalendarScreen
+import ru.example.pitervolley.ui.screens.CoachScreen
 import ru.example.pitervolley.ui.screens.CoachesScreen
 import ru.example.pitervolley.ui.screens.DivisionScreen
 import ru.example.pitervolley.ui.screens.DivisionsScreen
@@ -180,6 +181,16 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
             }
             composable("coaches") {
             CoachesScreen(
+                onBack = { nav.popBackStack() },
+                onOpenCoach = { nav.navigate("coach/${android.net.Uri.encode(it)}") },
+            )
+        }
+        composable(
+            "coach/{coachKey}",
+            arguments = listOf(navArgument("coachKey") { type = NavType.StringType }),
+        ) { entry ->
+            CoachScreen(
+                coachKey = entry.arguments?.getString("coachKey").orEmpty(),
                 onBack = { nav.popBackStack() },
                 onOpenTeam = { nav.navigate("team/$it") },
             )
