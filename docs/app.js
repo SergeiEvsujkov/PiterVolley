@@ -896,7 +896,7 @@ function screenHome() {
   coachesRow.append(whistle);
   const coachesText = el('div', 'grow');
   coachesText.append(el('div', 'strong', 'Тренеры команд'));
-  const coachesCount = S.data.teams.reduce((sum, team) => sum + (team.coaches ? team.coaches.length : 0), 0);
+  const coachesCount = coachesList().length;
   coachesText.append(el('div', 'small muted', `${coachesCount} · фото, команды, дивизионы`));
   coachesRow.append(coachesText, chevron());
   coachesCard.append(coachesRow);
@@ -1836,12 +1836,21 @@ function renderMonth(byDate) {
   return wrap;
 }
 
+function coachNameKey(name) {
+  return fold(name).split(' ').filter(Boolean).slice(0, 2).join(' ');
+}
+
 function coachesList() {
   const map = new Map();
   for (const team of S.data.teams) {
     for (const coach of team.coaches || []) {
-      if (!map.has(coach.id)) map.set(coach.id, { coach, teams: [] });
-      const entry = map.get(coach.id);
+      const key = coachNameKey(coach.name);
+      if (!map.has(key)) map.set(key, { coach, teams: [] });
+      const entry = map.get(key);
+      // показываем самое полное имя (с отчеством, если оно где-то есть)
+      if ((coach.name || '').split(' ').length > (entry.coach.name || '').split(' ').length) {
+        entry.coach = coach;
+      }
       if (!entry.teams.some(item => item.id === team.id)) entry.teams.push(team);
     }
   }

@@ -147,20 +147,31 @@ object Repo {
 
     fun playersOfPerson(key: String): List<Player> = playersByPerson[key].orEmpty()
 
-    /** Все тренеры из данных сайта: один человек — все его команды. */
+    /**
+     * Все тренеры из данных сайта: один человек — все его команды.
+     * Объединяем по фамилии и имени, как игроков: отчество и разный id не мешают.
+     */
     fun coaches(): List<CoachEntry> {
         if (!isLoaded) return emptyList()
-        val byId = LinkedHashMap<String, Coach>()
+        val groups = LinkedHashMap<String, MutableList<Coach>>()
         val teams = LinkedHashMap<String, MutableList<Team>>()
         for (team in data.teams) {
             for (coach in team.coaches) {
-                byId[coach.id] = coach
-                teams.getOrPut(coach.id) { mutableListOf() }.add(team)
+                val key = coachNameKey(coach.name)
+                groups.getOrPut(key) { mutableListOf() }.add(coach)
+                teams.getOrPut(key) { mutableListOf() }.add(team)
             }
         }
-        return byId.map { (id, coach) -> CoachEntry(coach, teams[id].orEmpty().distinctBy { it.id }) }
-            .sortedBy { it.coach.name }
+        return groups.map { (key, list) ->
+            val best = list.maxByOrNull { it.name.trim().split(" ").size } ?: list.first()
+            CoachEntry(best, teams[key].orEmpty().distinctBy { it.id })
+        }.sortedBy { it.coach.name }
     }
+
+    /** Ключ тренера: первые два слова ФИО (фамилия и имя), без отчества. */
+    fun coachNameKey(name: String): String =
+        name.lowercase().replace('ё', 'е').trim()
+            .split(" ").filter { it.isNotBlank() }.take(2).joinToString(" ")
 
     fun teamsOfPerson(key: String): List<Team> {
         val base = playersOfPerson(key).mapNotNull { team(it.teamId) }
