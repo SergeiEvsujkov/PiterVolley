@@ -53,6 +53,23 @@ object TeamLinks {
         prefs.edit().putStringSet(KEY, current).apply()
     }
 
+    /**
+     * Убирает привязки, которые стали лишними: игрок уже в этой команде
+     * по данным федерации или игрока больше нет.
+     */
+    fun prune(players: List<Player>) {
+        if (!::prefs.isInitialized) return
+        val byId = players.associateBy { it.id }
+        val current = prefs.getStringSet(KEY, emptySet()).orEmpty().toMutableSet()
+        val actual = current.filter { entry ->
+            val parts = entry.split(">")
+            if (parts.size != 2) return@filter false
+            val player = byId[parts[1]] ?: return@filter false
+            player.teamId != parts[0]
+        }.toSet()
+        if (actual != current) prefs.edit().putStringSet(KEY, actual).apply()
+    }
+
     fun count(): Int = all().values.sumOf { it.size }
 
     fun clear() {

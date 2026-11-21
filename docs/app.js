@@ -292,15 +292,31 @@ function buildIndexes(data) {
   for (const p of data.players) {
     S.playerPerson.set(p.id, effectiveKey(p));
   }
-  for (const [teamId, ids] of S.teamLinks) {
+  let linksChanged = false;
+  for (const [teamId, ids] of [...S.teamLinks.entries()]) {
     const team = S.teams.get(teamId);
-    if (!team) continue;
-    for (const id of ids) {
+    if (!team) {
+      S.teamLinks.delete(teamId);
+      linksChanged = true;
+      continue;
+    }
+    for (const id of [...ids]) {
       const player = data.players.find(item => item.id === id);
-      const person = player ? S.persons.get(effectiveKey(player)) : null;
+      // федерация уже внесла игрока в эту команду — привязка больше не нужна
+      if (!player || player.teamId === teamId) {
+        ids.delete(id);
+        linksChanged = true;
+        continue;
+      }
+      const person = S.persons.get(effectiveKey(player));
       if (person && !person.teams.some(item => item.id === team.id)) person.teams.push(team);
     }
+    if (!ids.size) {
+      S.teamLinks.delete(teamId);
+      linksChanged = true;
+    }
   }
+  if (linksChanged) saveTeamLinks();
 }
 
 async function clearSiteCaches() {

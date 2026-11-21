@@ -59,6 +59,7 @@ object Repo {
             slots = ds.slots.map { it.copy(venue = VenueNormalizer.normalize(it.venue)) },
         )
         dataset = normalized
+        TeamLinks.prune(ds.players)
 
         divisionById = ds.divisions.associateBy { it.id }
         teamById = ds.teams.associateBy { it.id }
