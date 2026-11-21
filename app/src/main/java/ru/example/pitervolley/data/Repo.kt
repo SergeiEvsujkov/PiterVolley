@@ -147,6 +147,21 @@ object Repo {
 
     fun playersOfPerson(key: String): List<Player> = playersByPerson[key].orEmpty()
 
+    /** Все тренеры из данных сайта: один человек — все его команды. */
+    fun coaches(): List<CoachEntry> {
+        if (!isLoaded) return emptyList()
+        val byId = LinkedHashMap<String, Coach>()
+        val teams = LinkedHashMap<String, MutableList<Team>>()
+        for (team in data.teams) {
+            for (coach in team.coaches) {
+                byId[coach.id] = coach
+                teams.getOrPut(coach.id) { mutableListOf() }.add(team)
+            }
+        }
+        return byId.map { (id, coach) -> CoachEntry(coach, teams[id].orEmpty().distinctBy { it.id }) }
+            .sortedBy { it.coach.name }
+    }
+
     fun teamsOfPerson(key: String): List<Team> {
         val base = playersOfPerson(key).mapNotNull { team(it.teamId) }
         val linked = playersOfPerson(key)
@@ -550,6 +565,8 @@ object Repo {
         return left.compareTo(right)
     }
 }
+
+data class CoachEntry(val coach: Coach, val teams: List<Team>)
 
 data class StandingRow(val team: Team) {
     var note: String = ""

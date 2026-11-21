@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -68,6 +69,7 @@ fun HomeScreen(
     onOpenPlayer: (String) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenVenues: () -> Unit,
+    onOpenCoaches: () -> Unit,
     onOpenCalendar: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -350,6 +352,33 @@ fun HomeScreen(
                         onOpenDivisions = onOpenDivisions,
                         onOpenDivision = onOpenDivision,
                     )
+                }
+
+                item { SectionTitle("Тренеры") }
+                item {
+                    Card(
+                        onClick = onOpenCoaches,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = BrandOrange)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Тренеры команд", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "${Repo.coaches().size} · фото, команды, дивизионы",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
 
                 item { SectionTitle("Залы") }

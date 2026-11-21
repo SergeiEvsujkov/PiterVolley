@@ -888,6 +888,21 @@ function screenHome() {
   }
   wrap.append(competitions);
 
+  wrap.append(el('h2', 'section', 'Тренеры'));
+  const coachesCard = el('div', 'card');
+  const coachesRow = el('div', 'row');
+  const whistle = el('div', 'roundicon');
+  whistle.append(icon('whistle'));
+  coachesRow.append(whistle);
+  const coachesText = el('div', 'grow');
+  coachesText.append(el('div', 'strong', 'Тренеры команд'));
+  const coachesCount = S.data.teams.reduce((sum, team) => sum + (team.coaches ? team.coaches.length : 0), 0);
+  coachesText.append(el('div', 'small muted', `${coachesCount} · фото, команды, дивизионы`));
+  coachesRow.append(coachesText, chevron());
+  coachesCard.append(coachesRow);
+  coachesCard.addEventListener('click', () => { location.hash = '#/coaches'; });
+  wrap.append(coachesCard);
+
   wrap.append(el('h2', 'section', 'Залы'));
   const venueCard = el('div', 'card');
   const venueRow = el('div', 'row');
@@ -1324,7 +1339,7 @@ function screenTeam(teamId) {
   const division = S.divisions.get(team.divisionId);
   const wrap = document.createDocumentFragment();
 
-  const profile = el('div', 'profile pinned');
+  const profile = el('div', 'profile');
   profile.append(teamLogo(team));
   const info = el('div');
   info.append(el('h3', null, team.name));
@@ -1336,21 +1351,20 @@ function screenTeam(teamId) {
   info.append(divisionLine);
   profile.append(info);
   profile.append(starButton(isFavTeam(team.id), () => toggleFavTeam(team.id)));
-  wrap.append(profile);
+  const teamHead = el('div', 'teamhead');
+  teamHead.append(profile);
 
   if (team.coaches && team.coaches.length) {
-    wrap.append(el('h2', 'section', team.coaches.length > 1 ? 'Тренеры' : 'Тренер'));
-    const coachCard = el('div', 'card flush');
+    teamHead.append(el('div', 'small muted teamhead-label', team.coaches.length > 1 ? 'Тренеры' : 'Тренер'));
     for (const coach of team.coaches) {
-      const row = el('div', 'row pad');
+      const row = el('div', 'row pad coachrow');
       row.append(personAvatar(coach));
       const text = el('div', 'grow');
       text.append(el('div', null, coach.name));
       text.append(el('div', 'small muted', 'Тренер'));
       row.append(text);
-      coachCard.append(row);
+      teamHead.append(row);
     }
-    wrap.append(coachCard);
   }
 
 
@@ -1362,7 +1376,8 @@ function screenTeam(teamId) {
   const addPlayer = el('button', 'linkish', 'Добавить игрока');
   addPlayer.addEventListener('click', () => openAttachPlayer(team));
   rosterHead.append(addPlayer);
-  wrap.append(rosterHead);
+  teamHead.append(rosterHead);
+  wrap.append(teamHead);
   if (!players.length) {
     const card = el('div', 'card');
     card.append(el('div', 'strong', 'Заявка ещё не опубликована'));
@@ -1818,6 +1833,63 @@ function renderMonth(byDate) {
   } else {
     wrap.append(el('div', 'empty', 'Выберите день с отметкой'));
   }
+  return wrap;
+}
+
+function coachesList() {
+  const map = new Map();
+  for (const team of S.data.teams) {
+    for (const coach of team.coaches || []) {
+      if (!map.has(coach.id)) map.set(coach.id, { coach, teams: [] });
+      const entry = map.get(coach.id);
+      if (!entry.teams.some(item => item.id === team.id)) entry.teams.push(team);
+    }
+  }
+  return [...map.values()].sort((a, b) => a.coach.name.localeCompare(b.coach.name, 'ru'));
+}
+
+function screenCoaches() {
+  const wrap = document.createDocumentFragment();
+  const box = el('div', 'searchbox');
+  const input = el('input');
+  input.type = 'search';
+  input.placeholder = 'Фамилия тренера';
+  box.append(input);
+  wrap.append(box);
+
+  const results = el('div');
+  wrap.append(results);
+  const all = coachesList();
+
+  const paint = value => {
+    const needle = fold(value || '');
+    results.replaceChildren();
+    const list = needle.length < 2 ? all : all.filter(item => fold(item.coach.name).includes(needle));
+    if (!list.length) {
+      results.append(el('div', 'empty', 'Ничего не найдено'));
+      return;
+    }
+    const card = el('div', 'card flush');
+    for (const item of list) {
+      const row = el('div', 'row pad');
+      row.append(personAvatar(item.coach));
+      const text = el('div', 'grow');
+      text.append(el('div', null, item.coach.name));
+      text.append(el('div', 'small muted', item.teams.map(team => {
+        const division = S.divisions.get(team.divisionId);
+        return division ? `${team.name} · ${divisionSubtitle(division)}` : team.name;
+      }).join(', ')));
+      row.append(text, chevron());
+      row.addEventListener('click', () => {
+        const team = item.teams[0];
+        if (team) location.hash = `#/team/${team.id}`;
+      });
+      card.append(row);
+    }
+    results.append(card);
+  };
+  paint('');
+  input.addEventListener('input', () => paint(input.value));
   return wrap;
 }
 
@@ -2325,6 +2397,11 @@ function render() {
     if (parts[1] === 'month') S.calMode = 'month';
     if (parts[1] === 'list') S.calMode = 'list';
     content = screenCalendar();
+  } else if (route === 'coaches') {
+    content = screenCoaches();
+    title = 'Тренеры';
+    subtitle = 'Тренеры команд';
+    back = true;
   } else if (route === 'venues') {
     content = screenVenues();
     back = true;
