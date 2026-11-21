@@ -2056,6 +2056,56 @@ function buildSearchResults(query) {
 
 
 // День тренера — 30 октября. Показываем поздравление один раз за день.
+// Первый запуск: рассказываем про раздел «Тренеры» (один раз на устройство).
+function maybeShowCoachesIntro() {
+  if (localStorage.getItem('vp.coachesIntro') === '1') return;
+
+  const overlay = el('div', 'modal');
+  const sheet = el('div', 'sheet');
+  const head = el('div', 'row pad');
+  head.append(el('div', 'grow strong', 'Новый раздел «Тренеры»'));
+  const close = el('button', 'icon-btn');
+  close.append(icon('close'));
+  head.append(close);
+  sheet.append(head);
+
+  const body = el('div', 'coachday');
+  body.style.padding = '0 16px 12px';
+  body.append(el('p', null,
+    'На главной, между «Соревнованиями» и «Залами», появился раздел «Тренеры».'));
+  body.append(el('p', null,
+    'Теперь можно посмотреть всех тренеров петербургского волейбола: фото, ФИО и команды, ' +
+    'которые они тренируют. Если тренер работает в нескольких командах, они показаны ' +
+    'у него на одной карточке — каждая на своей строке.'));
+  body.append(el('p', null,
+    'Есть поиск по фамилии. Нажатие на тренера открывает его страницу со всеми командами.'));
+  body.append(el('p', 'small muted', 'С уважением, Сергей Евсюков.'));
+  sheet.append(body);
+
+  const dismiss = () => {
+    localStorage.setItem('vp.coachesIntro', '1');
+    overlay.remove();
+  };
+
+  const look = el('button', 'btn', 'Посмотреть тренеров');
+  look.style.margin = '0 16px 8px';
+  look.addEventListener('click', () => {
+    dismiss();
+    location.hash = '#/coaches';
+  });
+  sheet.append(look);
+
+  const later = el('button', 'btn btn-ghost', 'Позже');
+  later.style.margin = '0 16px 16px';
+  later.addEventListener('click', dismiss);
+  sheet.append(later);
+
+  close.addEventListener('click', dismiss);
+  overlay.addEventListener('click', event => { if (event.target === overlay) dismiss(); });
+  overlay.append(sheet);
+  document.body.append(overlay);
+}
+
 function maybeShowCoachDay() {
   const now = new Date();
   if (now.getMonth() !== 9 || now.getDate() !== 30) return;
@@ -2507,6 +2557,7 @@ restoreUi();
 if (readCachedData()) render();
 loadData(true);
 setTimeout(maybeShowCoachDay, 700);
+setTimeout(maybeShowCoachesIntro, 1200);
 
 // возврат в приложение: если данные старше 10 минут — обновляем
 document.addEventListener('visibilitychange', () => {
