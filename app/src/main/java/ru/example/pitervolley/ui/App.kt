@@ -233,6 +233,7 @@ fun VolleyPiterApp(startRoute: String? = null, startQuery: String? = null) {
                     onOpenPlayer = { nav.navigate("player/$it") },
                     onOpenGame = { nav.navigate("game/${it.divisionId}/${it.id}") },
                     onOpenDivision = { nav.navigate("division/$it") },
+                    onOpenCoach = { nav.navigate("coach/${android.net.Uri.encode(it)}") },
                 )
             }
             composable(

@@ -59,6 +59,7 @@ fun TeamScreen(
     onOpenPlayer: (String) -> Unit,
     onOpenGame: (Game) -> Unit,
     onOpenDivision: (Int) -> Unit,
+    onOpenCoach: (String) -> Unit,
 ) {
     val team = Repo.team(teamId)
     if (team == null) {
@@ -161,6 +162,7 @@ fun TeamScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .clickable { onOpenCoach(Repo.coachNameKey(coach.name)) }
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

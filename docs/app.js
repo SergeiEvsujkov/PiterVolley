@@ -1363,6 +1363,10 @@ function screenTeam(teamId) {
       text.append(el('div', null, coach.name));
       text.append(el('div', 'small muted', 'Тренер'));
       row.append(text);
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        location.hash = `#/coach/${encodeURIComponent(coachNameKey(coach.name))}`;
+      });
       teamHead.append(row);
     }
   }
