@@ -351,6 +351,17 @@ object Repo {
         division?.competition?.contains("Чемпионат", ignoreCase = true) == true
 
     /** Очки Первенства: 3 за 3:0–3:1, 2 за 3:2, 1 за поражение 2:3. */
+    /** Юноши и девушки 2015 г.р.: матчи до двух побед, очки 3/2/1/0. */
+    private fun awardYoungPoints(row: StandingRow, won: Int, lost: Int) {
+        if (won > lost) {
+            row.wins++
+            row.points += if (lost == 0) 3 else 2
+        } else if (lost > won) {
+            row.losses++
+            if (won == 1 && lost == 2) row.points += 1
+        }
+    }
+
     private fun awardPremierPoints(row: StandingRow, won: Int, lost: Int) {
         when {
             won > lost -> {
