@@ -608,10 +608,16 @@ function ratioCompare(aNum, aDen, bNum, bDen) {
   return a > b ? 1 : -1;
 }
 
-function awardPoints(row, won, lost, firstTeam, championship) {
+function awardPoints(row, won, lost, firstTeam, championship, young2015) {
   const win = won > lost;
   if (win) row.wins++;
   else if (lost > won) row.losses++;
+  if (young2015) {
+    // юноши и девушки 2015 г.р.: матчи до двух побед, очки 3/2/1/0
+    if (win) row.points += lost === 0 ? 3 : 2;
+    else if (won === 1 && lost === 2) row.points += 1;
+    return;
+  }
   if (championship) {
     if (win) row.points += (won === 3 && lost === 2) ? (firstTeam ? 4 : 2) : (firstTeam ? 6 : 3);
     else if (won === 2 && lost === 3) row.points += firstTeam ? 2 : 1;
@@ -625,6 +631,7 @@ function standings(divisionId) {
   const division = S.divisions.get(divisionId);
   if (!division) return [];
   const championship = isChampionship(division);
+  const young2015 = division.birthYear === 2015;
   const rows = new Map();
   for (const team of S.data.teams.filter(t => t.divisionId === divisionId)) {
     rows.set(team.id, { team, played: 0, wins: 0, losses: 0, points: 0, sf: 0, sa: 0, bf: 0, ba: 0 });
@@ -642,8 +649,8 @@ function standings(divisionId) {
       away.bf += set[1]; away.ba += set[0];
     }
     const firstTeam = division.teamLabel === 1;
-    awardPoints(home, hs, as, firstTeam, championship);
-    awardPoints(away, as, hs, firstTeam, championship);
+    awardPoints(home, hs, as, firstTeam, championship, young2015);
+    awardPoints(away, as, hs, firstTeam, championship, young2015);
     playedPairs.push({ game, home, away, hs, as, firstTeam });
   }
 

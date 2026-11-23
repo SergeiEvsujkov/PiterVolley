@@ -308,6 +308,7 @@ object Repo {
         val division = divisionById[divisionId]
         val firstTeam = division?.teamLabel == 1
         val championship = isChampionship(division)
+        val young2015 = division?.birthYear == 2015
         val rows = LinkedHashMap<String, StandingRow>()
         for (team in teamsOf(divisionId)) {
             rows[team.id] = StandingRow(team)
@@ -331,7 +332,10 @@ object Repo {
                 away.ballsFor += set[1]
                 away.ballsAgainst += set[0]
             }
-            if (championship) {
+            if (young2015) {
+                awardYoungPoints(home, hs, asets)
+                awardYoungPoints(away, asets, hs)
+            } else if (championship) {
                 awardChampionshipPoints(home, hs, asets, firstTeam)
                 awardChampionshipPoints(away, asets, hs, firstTeam)
             } else {
