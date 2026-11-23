@@ -92,7 +92,7 @@ fun DivisionScreen(
                 }
             }
             when (tabs.getOrNull(tab) ?: "Таблица") {
-                "Таблица" -> StandingsTab(standings, onOpenTeam, isChampionship)
+                "Таблица" -> StandingsTab(standings, onOpenTeam, isChampionship, division?.birthYear == 2015)
                 "Общая" -> CombinedTab(combined, onOpenTeam)
                 "Игры" -> GamesTab(games, onOpenGame)
                 else -> TeamsTab(teams, onOpenTeam)
@@ -102,7 +102,7 @@ fun DivisionScreen(
 }
 
 @Composable
-private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, championship: Boolean) {
+private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, championship: Boolean, young2015: Boolean) {
     if (rows.isEmpty()) {
         EmptyState("Таблица пуста")
         return
@@ -177,7 +177,10 @@ private fun StandingsTab(rows: List<StandingRow>, onOpenTeam: (String) -> Unit, 
         }
         item {
             Text(
-                text = if (championship) {
+                text = if (young2015) {
+                    "Места: победы → очки → партии → мячи → личные встречи.\n" +
+                        "Очки: 3 за победу 2:0, 2 за 2:1, 1 за поражение 1:2, 0 за 0:2."
+                } else if (championship) {
                     "Места: победы → очки → партии → мячи → личные встречи.\n" +
                         "Очки: у первой команды 6 за 3:0–3:1, 4 за 3:2, 2 за 2:3; у второй — 3, 2, 1."
                 } else {

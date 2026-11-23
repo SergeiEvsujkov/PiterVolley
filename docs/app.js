@@ -1284,9 +1284,15 @@ function screenDivision(divisionId, tab) {
     const card = el('div', 'card flush');
     card.append(table);
     wrap.append(card);
-    wrap.append(el('div', 'caption', isChampionship(division)
-      ? 'Места: победы → очки → партии → мячи → личные встречи.\nОчки: у первой команды 6 за 3:0–3:1, 4 за 3:2, 2 за 2:3; у второй — 3, 2, 1.'
-      : 'Места: победы → очки → партии → мячи → личные встречи.\nОчки: 3 за 3:0–3:1, 2 за 3:2, 1 за поражение 2:3.'));
+    const pointsHint = division.birthYear === 2015
+      ? 'Места: победы → очки → партии → мячи → личные встречи.\n' +
+        'Очки: 3 за победу 2:0, 2 за 2:1, 1 за поражение 1:2, 0 за 0:2.'
+      : isChampionship(division)
+        ? 'Места: победы → очки → партии → мячи → личные встречи.\n' +
+          'Очки: у первой команды 6 за 3:0–3:1, 4 за 3:2, 2 за 2:3; у второй — 3, 2, 1.'
+        : 'Места: победы → очки → партии → мячи → личные встречи.\n' +
+          'Очки: 3 за 3:0–3:1, 2 за 3:2, 1 за поражение 2:3.';
+    wrap.append(el('div', 'caption', pointsHint));
   } else if (current === 'combined') {
     const rows = combinedStandings(divisionId);
     const table = el('table', 'table');
