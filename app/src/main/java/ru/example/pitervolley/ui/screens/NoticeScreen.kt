@@ -152,8 +152,17 @@ fun NoticeScreen(onBack: () -> Unit) {
                         val result = withContext(Dispatchers.IO) {
                             publishNotice(token, title, text, signature, from, to)
                         }
-                        message = result
                         busy = false
+                        if (result.first) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Объявление опубликовано",
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                            onBack()
+                        } else {
+                            message = result.second
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -188,7 +197,7 @@ private fun publishNotice(
     signature: String,
     from: String,
     to: String,
-): String {
+): Pair<Boolean, String> {
     val api = "https://api.github.com/repos/$REPO/contents/$NOTICE_PATH"
     val notice = JSONObject().apply {
         put("id", "n-" + System.currentTimeMillis())
@@ -216,9 +225,13 @@ private fun publishNotice(
     }
     return try {
         val response = request("PUT", api, token, body.toString())
-        if (response.first in 200..299) "Опубликовано" else "Ошибка GitHub: ${response.first} ${response.second.take(160)}"
+        if (response.first in 200..299) {
+            true to "Опубликовано"
+        } else {
+            false to "Ошибка GitHub: ${response.first} ${response.second.take(160)}"
+        }
     } catch (error: Exception) {
-        "Ошибка: ${error.message}"
+        false to "Ошибка: ${error.message}"
     }
 }
 
