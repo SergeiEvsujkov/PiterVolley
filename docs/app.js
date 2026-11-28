@@ -2078,10 +2078,13 @@ function buildSearchResults(query) {
 // Текст объявления: ссылки делаем кликабельными.
 function appendNoticeText(parent, text) {
   const value = String(text || '');
-  const pattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  // http(s)-ссылки, www-адреса и домены без схемы (vk.ru, pitervolley.ru/table)
+  const pattern = /(https?:\/\/[^\s]+|(?:www\.)?(?:[a-z0-9-]+\.)+(?:ru|com|org|net|io|su|info|by|kz|ua|me|tv|site|online|рф)(?:\/[^\s]*)?)/gi;
   let last = 0;
   let match;
   while ((match = pattern.exec(value)) !== null) {
+    const before = match.index > 0 ? value[match.index - 1] : '';
+    if (before && /[\wа-я@]/i.test(before)) continue; // часть слова или e-mail
     if (match.index > last) parent.append(document.createTextNode(value.slice(last, match.index)));
     let url = match[0];
     let tail = '';
