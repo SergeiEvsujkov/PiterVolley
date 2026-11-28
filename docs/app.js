@@ -2074,6 +2074,60 @@ function buildSearchResults(query) {
 
 // День тренера — 30 октября. Показываем поздравление один раз за день.
 // Первый запуск: рассказываем про раздел «Тренеры» (один раз на устройство).
+// Объявление с сервера: docs/notice.json, публикуется из приложения.
+async function maybeShowNotice() {
+  // не перекрываем другое окно (например, рассказ о разделе «Тренеры»)
+  if (document.querySelector('.modal')) {
+    maybeShowNotice.retries = (maybeShowNotice.retries || 0) + 1;
+    if (maybeShowNotice.retries < 8) setTimeout(maybeShowNotice, 1500);
+    return;
+  }
+  maybeShowNotice.retries = 0;
+  try {
+    const response = await fetch(`notice.json?ts=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const notice = await response.json();
+    if (!notice || !notice.active || !notice.title) return;
+    const now = new Date().toISOString().slice(0, 10);
+    if (notice.from && now < notice.from) return;
+    if (notice.to && now > notice.to) return;
+    if (localStorage.getItem('vp.noticeSeen') === notice.id) return;
+
+    const overlay = el('div', 'modal');
+    const sheet = el('div', 'sheet');
+    const head = el('div', 'row pad');
+    head.append(el('div', 'grow strong', notice.title));
+    const close = el('button', 'icon-btn');
+    close.append(icon('close'));
+    head.append(close);
+    sheet.append(head);
+
+    const body = el('div', 'coachday');
+    body.style.padding = '0 16px 12px';
+    for (const line of String(notice.text || '').split('\n')) {
+      if (line.trim()) body.append(el('p', null, line.trim()));
+    }
+    if (notice.signature) body.append(el('p', 'small muted', notice.signature));
+    sheet.append(body);
+
+    const dismiss = () => {
+      localStorage.setItem('vp.noticeSeen', notice.id || notice.title);
+      overlay.remove();
+    };
+    const ok = el('button', 'btn', 'Понятно');
+    ok.style.margin = '0 16px 16px';
+    ok.addEventListener('click', dismiss);
+    sheet.append(ok);
+
+    close.addEventListener('click', dismiss);
+    overlay.addEventListener('click', event => { if (event.target === overlay) dismiss(); });
+    overlay.append(sheet);
+    document.body.append(overlay);
+  } catch (error) {
+    // объявления нет или сеть недоступна — молча пропускаем
+  }
+}
+
 function maybeShowCoachesIntro() {
   if (localStorage.getItem('vp.coachesIntro') === '1') return;
 
@@ -2575,6 +2629,7 @@ if (readCachedData()) render();
 loadData(true);
 setTimeout(maybeShowCoachDay, 700);
 setTimeout(maybeShowCoachesIntro, 1200);
+setTimeout(maybeShowNotice, 1500);
 
 // возврат в приложение: если данные старше 10 минут — обновляем
 document.addEventListener('visibilitychange', () => {

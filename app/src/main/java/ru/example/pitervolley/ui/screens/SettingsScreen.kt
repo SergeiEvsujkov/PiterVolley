@@ -47,7 +47,7 @@ import ru.example.pitervolley.ui.ScreenScaffold
 import ru.example.pitervolley.ui.SectionTitle
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenHelp: () -> Unit = {}) {
+fun SettingsScreen(onBack: () -> Unit, onOpenHelp: () -> Unit = {}, onOpenNotice: () -> Unit = {}) {
     var version by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val reminders by ReminderSettings.state.collectAsState()
@@ -277,6 +277,34 @@ fun SettingsScreen(onBack: () -> Unit, onOpenHelp: () -> Unit = {}) {
             }
 
             // ---------------------------------------------------------- данные
+            SectionTitle("Объявление для веба")
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clickable { onOpenNotice() },
+            ) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Объявление для веба",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Опубликовать сообщение, которое увидят при первом запуске",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
             SectionTitle("Данные")
             Card(
                 shape = RoundedCornerShape(20.dp),
