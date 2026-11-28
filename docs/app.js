@@ -2075,6 +2075,31 @@ function buildSearchResults(query) {
 // День тренера — 30 октября. Показываем поздравление один раз за день.
 // Первый запуск: рассказываем про раздел «Тренеры» (один раз на устройство).
 // Объявление с сервера: docs/notice.json, публикуется из приложения.
+// Текст объявления: ссылки делаем кликабельными.
+function appendNoticeText(parent, text) {
+  const value = String(text || '');
+  const pattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  let last = 0;
+  let match;
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > last) parent.append(document.createTextNode(value.slice(last, match.index)));
+    let url = match[0];
+    let tail = '';
+    const trimmed = url.replace(/[.,;:!?)\]]+$/, '');
+    if (trimmed.length !== url.length) {
+      tail = url.slice(trimmed.length);
+      url = trimmed;
+    }
+    const link = el('a', null, url);
+    link.href = /^https?:/i.test(url) ? url : `https://${url}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    parent.append(link, document.createTextNode(tail));
+    last = match.index + match[0].length;
+  }
+  if (last < value.length) parent.append(document.createTextNode(value.slice(last)));
+}
+
 async function maybeShowNotice() {
   // не перекрываем другое окно (например, рассказ о разделе «Тренеры»)
   if (document.querySelector('.modal')) {
@@ -2105,7 +2130,10 @@ async function maybeShowNotice() {
     const body = el('div', 'coachday');
     body.style.padding = '0 16px 12px';
     for (const line of String(notice.text || '').split('\n')) {
-      if (line.trim()) body.append(el('p', null, line.trim()));
+      if (!line.trim()) continue;
+      const paragraph = el('p');
+      appendNoticeText(paragraph, line.trim());
+      body.append(paragraph);
     }
     if (notice.signature) body.append(el('p', 'small muted', notice.signature));
     sheet.append(body);

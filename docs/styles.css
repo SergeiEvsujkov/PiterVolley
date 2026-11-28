@@ -330,3 +330,5 @@ a{color:inherit;text-decoration:none}
 .teamhead-label{margin:0 0 4px}
 .teamhead .coachrow{padding:4px 0}
 .teamhead h2.section{margin:8px 0 6px}
+
+.coachday a{color:var(--brand);text-decoration:underline;word-break:break-word}
